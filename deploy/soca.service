@@ -1,0 +1,20 @@
+[Unit]
+Description=Soca Status (Uptime Kuma 2.4.0 fork)
+After=network.target
+
+[Service]
+Type=simple
+# The user that owns /opt/soca (create with: sudo useradd -r -s /usr/sbin/nologin kuma)
+User=kuma
+WorkingDirectory=/opt/soca
+# Adjust the node path if you use nvm/fnm (run `which node`):
+ExecStart=/usr/bin/node server/server.js --port=3001 --data-dir=/opt/soca/data
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+# Hardening (optional, relax if it breaks anything)
+NoNewPrivileges=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
