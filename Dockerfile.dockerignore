@@ -1,0 +1,25 @@
+# Dedicated ignore for the Soca Dockerfile (BuildKit picks <Dockerfile>.dockerignore
+# over the root .dockerignore). Unlike the upstream .dockerignore, this keeps tsconfig.json
+# and other build inputs so the in-image `npm run build` works.
+
+# Never ship local/dev artifacts or data into the build context
+node_modules
+**/node_modules
+dist
+.git
+**/.git
+
+# Local databases / backups (dev only — server creates a fresh DB)
+/data
+/data-*
+data-v2
+
+# Packaging / OS noise
+*.tar.gz
+.DS_Store
+/tmp
+
+# Our own deploy helpers don't need to be inside the image
+deploy
+Dockerfile
+Dockerfile.dockerignore

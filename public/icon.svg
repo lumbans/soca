@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="256" fill="#166534"/>
+  <!-- Iris -->
+  <circle cx="256" cy="256" r="179" fill="#4ADE80"/>
+  <!-- Pupil -->
+  <circle cx="256" cy="256" r="102" fill="#14532D"/>
+  <!-- Core -->
+  <circle cx="256" cy="256" r="55" fill="#052E16"/>
+  <!-- Pulse line -->
+  <polyline
+    points="200,256 212,256 224,224 236,288 248,232 260,272 272,248 288,256 312,256"
+    fill="none"
+    stroke="white"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Live dot -->
+  <circle cx="358" cy="154" r="42" fill="#FDE047"/>
+  <circle cx="358" cy="154" r="21" fill="white"/>
+</svg>
