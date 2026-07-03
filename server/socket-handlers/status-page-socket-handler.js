@@ -1,5 +1,5 @@
 const { R } = require("redbean-node");
-const { checkLogin } = require("../util-server");
+const { checkLogin, checkPermission } = require("../util-server");
 const dayjs = require("dayjs");
 const { log } = require("../../src/util");
 const ImageDataURI = require("../image-data-uri");
@@ -10,7 +10,7 @@ const { UptimeKumaServer } = require("../uptime-kuma-server");
 const { Settings } = require("../settings");
 
 // Soca: valid lifecycle statuses and impact levels
-const VALID_INCIDENT_STATUS = ["investigating", "identified", "monitoring", "resolved"];
+const VALID_INCIDENT_STATUS = ["investigating", "identified", "monitoring", "update", "resolved"];
 const VALID_IMPACT = ["none", "minor", "major", "critical"];
 
 /**
@@ -80,7 +80,7 @@ module.exports.statusPageSocketHandler = (socket) => {
     // Post or edit incident
     socket.on("postIncident", async (slug, incident, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
 
@@ -152,7 +152,7 @@ module.exports.statusPageSocketHandler = (socket) => {
 
     socket.on("unpinIncident", async (slug, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
 
@@ -192,7 +192,7 @@ module.exports.statusPageSocketHandler = (socket) => {
 
     socket.on("editIncident", async (slug, incidentID, incident, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
             if (!statusPageID) {
@@ -269,7 +269,7 @@ module.exports.statusPageSocketHandler = (socket) => {
 
     socket.on("deleteIncident", async (slug, incidentID, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
             if (!statusPageID) {
@@ -309,7 +309,7 @@ module.exports.statusPageSocketHandler = (socket) => {
 
     socket.on("resolveIncident", async (slug, incidentID, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
             if (!statusPageID) {
@@ -361,7 +361,7 @@ module.exports.statusPageSocketHandler = (socket) => {
     // Soca: append a timeline update to an incident (lifecycle transition / note).
     socket.on("addIncidentUpdate", async (slug, incidentID, status, message, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "incidents");
 
             let statusPageID = await StatusPage.slugToID(slug);
             if (!statusPageID) {
@@ -414,7 +414,7 @@ module.exports.statusPageSocketHandler = (socket) => {
     // Soca: set/clear a per-day note for a monitor (empty note = delete).
     socket.on("setMonitorDailyNote", async (monitorID, day, note, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "components");
 
             if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day || ""))) {
                 throw new Error("Invalid date (expected YYYY-MM-DD)");
@@ -467,7 +467,7 @@ module.exports.statusPageSocketHandler = (socket) => {
     // imgDataUrl Only Accept PNG!
     socket.on("saveStatusPage", async (slug, config, imgDataUrl, publicGroupList, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "components");
 
             // Save Config
             let statusPage = await R.findOne("status_page", " slug = ? ", [slug]);
@@ -611,7 +611,7 @@ module.exports.statusPageSocketHandler = (socket) => {
     // Add a new status page
     socket.on("addStatusPage", async (title, slug, callback) => {
         try {
-            checkLogin(socket);
+            checkPermission(socket, "components");
 
             title = title?.trim();
             slug = slug?.trim();
@@ -659,7 +659,7 @@ module.exports.statusPageSocketHandler = (socket) => {
         const server = UptimeKumaServer.getInstance();
 
         try {
-            checkLogin(socket);
+            checkPermission(socket, "components");
 
             let statusPageID = await StatusPage.slugToID(slug);
 

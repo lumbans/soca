@@ -51,6 +51,7 @@ const { demoMode } = require("../config");
 const version = require("../../package.json").version;
 const apicache = require("../modules/apicache");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
+const { SHARED_DASHBOARD_ROOM } = require("../shared-room");
 const { DockerHost } = require("../docker");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -1102,8 +1103,9 @@ class Monitor extends BeanModel {
 
             // Send to frontend
             log.debug("monitor", `[${this.name}] Send to socket`);
-            io.to(this.user_id).emit("heartbeat", bean.toJSON());
-            Monitor.sendStats(io, this.id, this.user_id);
+            // Soca: broadcast live heartbeats to the whole team, not just the owner.
+            io.to(SHARED_DASHBOARD_ROOM).emit("heartbeat", bean.toJSON());
+            Monitor.sendStats(io, this.id, SHARED_DASHBOARD_ROOM);
 
             // Store to database
             log.debug("monitor", `[${this.name}] Store`);
@@ -2031,7 +2033,8 @@ class Monitor extends BeanModel {
         }
 
         // Delete from database
-        await R.exec("DELETE FROM monitor WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+        // Soca: monitors are shared team-wide — no per-user scoping on delete.
+        await R.exec("DELETE FROM monitor WHERE id = ? ", [monitorID]);
     }
 
     /**
@@ -2042,7 +2045,8 @@ class Monitor extends BeanModel {
      */
     static async deleteMonitorRecursively(monitorID, userID) {
         // Check if this monitor is a group
-        const monitor = await R.findOne("monitor", " id = ? AND user_id = ? ", [monitorID, userID]);
+        // Soca: monitors are shared team-wide — no per-user scoping.
+        const monitor = await R.findOne("monitor", " id = ? ", [monitorID]);
 
         if (monitor && monitor.type === "group") {
             // Get all children and delete them recursively

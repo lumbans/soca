@@ -1,5 +1,5 @@
 <template>
-    <div v-if="loadedTheme" class="container mt-3">
+    <div v-if="loadedTheme" class="container mt-3 bm-status-page">
         <!-- Sidebar for edit mode -->
         <div v-if="enableEditMode" class="sidebar" data-testid="edit-sidebar">
             <div class="sidebar-body">
@@ -213,7 +213,7 @@
                     ></prism-editor>
                 </div>
 
-                <div class="danger-zone">
+                <div v-if="$root.can('components')" class="danger-zone">
                     <button class="btn btn-danger me-2" @click="deleteDialog">
                         <font-awesome-icon icon="trash" />
                         {{ $t("Delete") }}
@@ -223,7 +223,7 @@
 
             <!-- Sidebar Footer -->
             <div class="sidebar-footer">
-                <button class="btn btn-success me-2" :disabled="loading" data-testid="save-button" @click="save">
+                <button v-if="$root.can('components')" class="btn btn-success me-2" :disabled="loading" data-testid="save-button" @click="save">
                     <font-awesome-icon icon="save" />
                     {{ $t("Save") }}
                 </button>
@@ -274,9 +274,26 @@
             <!-- Admin functions -->
             <div v-if="hasToken" class="mb-2">
                 <div v-if="!enableEditMode">
-                    <button class="btn btn-primary mb-2 me-2" data-testid="edit-button" @click="edit">
+                    <!-- Soca: layout editing is a "components" action. -->
+                    <button
+                        v-if="$root.can('components')"
+                        class="btn btn-primary mb-2 me-2"
+                        data-testid="edit-button"
+                        @click="edit"
+                    >
                         <font-awesome-icon icon="edit" />
                         {{ $t("Edit Status Page") }}
+                    </button>
+
+                    <!-- Soca: incident management is decoupled from layout edit mode. -->
+                    <button
+                        v-if="$root.can('incidents')"
+                        class="btn btn-primary mb-2 me-2"
+                        data-testid="create-incident-button"
+                        @click="createIncident"
+                    >
+                        <font-awesome-icon icon="bullhorn" />
+                        {{ $t("Create Incident") }}
                     </button>
 
                     <a href="/manage-status-page" class="btn btn-primary mb-2">
@@ -287,8 +304,8 @@
 
                 <div v-else>
                     <button
+                        v-if="$root.can('incidents')"
                         class="btn btn-primary btn-add-group me-2"
-                        data-testid="create-incident-button"
                         @click="createIncident"
                     >
                         <font-awesome-icon icon="bullhorn" />
@@ -385,8 +402,8 @@
                         </div>
                     </div>
 
-                    <!-- Soca: post a lifecycle update -->
-                    <div v-if="editMode" class="add-update mt-3">
+                    <!-- Soca: post a lifecycle update (incident managers, no layout mode needed) -->
+                    <div v-if="hasToken && $root.can('incidents')" class="add-update mt-3">
                         <div class="row g-2 align-items-center">
                             <div class="col-auto">
                                 <select
@@ -397,6 +414,7 @@
                                     <option value="investigating">Investigating</option>
                                     <option value="identified">Identified</option>
                                     <option value="monitoring">Monitoring</option>
+                                    <option value="update">Update</option>
                                     <option value="resolved">Resolved</option>
                                 </select>
                             </div>
@@ -416,7 +434,7 @@
                         </div>
                     </div>
 
-                    <div v-if="editMode" class="mt-3">
+                    <div v-if="hasToken && $root.can('incidents')" class="mt-3">
                         <button class="btn btn-light me-2" @click="resolveIncident(activeIncident)">
                             <font-awesome-icon icon="check" />
                             {{ $t("Resolve") }}
@@ -437,21 +455,7 @@
                 </div>
             </template>
 
-            <!-- Soca: ongoing/scheduled maintenance shown prominently above the monitor list -->
-            <template v-if="maintenanceList.length > 0">
-                <div v-for="maintenance in maintenanceList" :key="maintenance.id" class="bm-maint mb-3">
-                    <div class="bm-maint-head">
-                        <font-awesome-icon icon="wrench" class="bm-maint-icon" />
-                        <span class="bm-maint-title">{{ maintenance.title }}</span>
-                        <span class="bm-maint-tag">{{ $t("Maintenance") }}</span>
-                    </div>
-                    <!-- eslint-disable-next-line vue/no-v-html-->
-                    <div class="bm-maint-desc" v-html="maintenanceHTML(maintenance.description)"></div>
-                    <MaintenanceTime :maintenance="maintenance" />
-                </div>
-            </template>
-
-            <!-- Overall Status -->
+            <!-- Overall Status (full width) -->
             <div class="shadow-box list p-4 overall-status mb-4">
                 <div v-if="Object.keys($root.publicMonitorList).length === 0 && loadedData">
                     <font-awesome-icon icon="question-circle" class="ok" />
@@ -613,7 +617,6 @@
                     <span><i class="bm-leg bm-none"></i>No data</span>
                 </div>
             </div>
-
             <!-- Soca: floating bar hover tooltip -->
             <!-- eslint-disable vue/no-v-html -->
             <div
@@ -624,6 +627,9 @@
             ></div>
             <!-- eslint-enable vue/no-v-html -->
 
+            <!-- Soca: two-column area — Past Incidents on the left, maintenance box on the right -->
+            <div class="bm-layout" :class="{ 'bm-has-side': hasSideMaintenance }">
+                <div class="bm-layout-main">
             <!-- Past Incidents -->
             <div v-if="pastIncidentCount > 0" class="past-incidents-section mb-4">
                 <div class="bm-uptime-head mb-3">
@@ -670,6 +676,118 @@
                     </div>
                 </div>
             </div>
+                </div><!-- /.bm-layout-main -->
+
+                <!-- Soca: maintenance box (tabs + table) beside Past Incidents -->
+                <aside v-if="hasSideMaintenance" class="bm-layout-side">
+                    <div class="bm-maint-box shadow-box">
+                        <div class="bm-maint-tabs">
+                            <button
+                                type="button"
+                                class="bm-maint-tab"
+                                :class="{ active: maintTab === 'active' }"
+                                @click="maintTab = 'active'"
+                            >
+                                {{ $t("Maintenance") }}
+                            </button>
+                            <button
+                                type="button"
+                                class="bm-maint-tab"
+                                :class="{ active: maintTab === 'scheduled' }"
+                                @click="maintTab = 'scheduled'"
+                            >
+                                {{ $t("Scheduled Maintenance") }}
+                            </button>
+                        </div>
+
+                        <!-- Active / ongoing -->
+                        <div v-show="maintTab === 'active'" class="bm-maint-tabbody">
+                            <div v-if="maintenanceList.length === 0" class="bm-maint-empty">
+                                Tidak ada maintenance yang sedang berlangsung.
+                            </div>
+                            <table v-else class="bm-maint-table">
+                                <thead>
+                                    <tr>
+                                        <th>Judul</th>
+                                        <th>Status</th>
+                                        <th>Tanggal &amp; Waktu</th>
+                                        <th>Sistem Terdampak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="m in maintenanceList" :key="'act' + m.id">
+                                        <td class="bm-mt-title">{{ m.title }}</td>
+                                        <td>
+                                            <span class="bm-mt-badge bm-mt-active">
+                                                <span class="bm-maint-dot"></span>{{ $t("In Progress") }}
+                                            </span>
+                                        </td>
+                                        <td class="bm-mt-time">
+                                            <template v-if="maintTimeRange(m)">
+                                                <div>{{ maintTimeRange(m).start }}</div>
+                                                <div v-if="maintTimeRange(m).end">s/d {{ maintTimeRange(m).end }}</div>
+                                                <div class="bm-mt-tz">UTC{{ m.timezoneOffset }}</div>
+                                            </template>
+                                            <span v-else class="bm-mt-none">—</span>
+                                        </td>
+                                        <td class="bm-mt-systems">
+                                            <template v-if="m.affectedMonitors && m.affectedMonitors.length">
+                                                <span v-for="s in m.affectedMonitors" :key="s.id" class="bm-mt-chip">{{ s.name }}</span>
+                                            </template>
+                                            <span v-else class="bm-mt-none">—</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Scheduled / upcoming -->
+                        <div v-show="maintTab === 'scheduled'" class="bm-maint-tabbody">
+                            <div v-if="upcomingMaintenanceList.length === 0" class="bm-maint-empty">
+                                Tidak ada maintenance yang terjadwal.
+                            </div>
+                            <table v-else class="bm-maint-table">
+                                <thead>
+                                    <tr>
+                                        <th>Judul</th>
+                                        <th>Status</th>
+                                        <th>Tanggal &amp; Waktu</th>
+                                        <th>Sistem Terdampak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="m in upcomingMaintenanceList" :key="'up' + m.id">
+                                        <td class="bm-mt-title">{{ m.title }}</td>
+                                        <td>
+                                            <span class="bm-mt-badge bm-mt-scheduled">{{ $t("Scheduled") }}</span>
+                                        </td>
+                                        <td class="bm-mt-time">
+                                            <template v-if="maintTimeRange(m)">
+                                                <div>{{ maintTimeRange(m).start }}</div>
+                                                <div v-if="maintTimeRange(m).end">s/d {{ maintTimeRange(m).end }}</div>
+                                                <div class="bm-mt-tz">UTC{{ m.timezoneOffset }}</div>
+                                            </template>
+                                            <span v-else class="bm-mt-none">—</span>
+                                        </td>
+                                        <td class="bm-mt-systems">
+                                            <template v-if="m.affectedMonitors && m.affectedMonitors.length">
+                                                <span v-for="s in m.affectedMonitors" :key="s.id" class="bm-mt-chip">{{ s.name }}</span>
+                                            </template>
+                                            <span v-else class="bm-mt-none">—</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="bm-maint-box-foot">
+                            <router-link class="bm-more-link" :to="'/status/' + slug + '/maintenance'">
+                                Riwayat maintenance →
+                            </router-link>
+                        </div>
+                    </div>
+                </aside>
+            </div><!-- /.bm-layout -->
 
             <!-- Incident Manage Modal -->
             <IncidentManageModal
@@ -753,7 +871,6 @@ import DOMPurify from "dompurify";
 import Confirm from "../components/Confirm.vue";
 import PublicGroupList from "../components/PublicGroupList.vue";
 import HeartbeatBar from "../components/HeartbeatBar.vue";
-import MaintenanceTime from "../components/MaintenanceTime.vue";
 import IncidentHistory from "../components/IncidentHistory.vue";
 import IncidentManageModal from "../components/IncidentManageModal.vue";
 import IncidentEditForm from "../components/IncidentEditForm.vue";
@@ -788,7 +905,6 @@ export default {
         ImageCropUpload,
         Confirm,
         PrismEditor,
-        MaintenanceTime,
         Tag,
         VueMultiselect,
         IncidentHistory,
@@ -843,6 +959,11 @@ export default {
             baseURL: "",
             clickedEditButton: false,
             maintenanceList: [],
+            // Soca: scheduled (upcoming) and ended (past) maintenance windows
+            upcomingMaintenanceList: [],
+            pastMaintenanceList: [],
+            // Soca: active tab inside the single maintenance box ("active" | "scheduled")
+            maintTab: "active",
             lastUpdateTime: dayjs(),
             updateCountdown: null,
             updateCountdownText: null,
@@ -904,7 +1025,8 @@ export default {
         },
 
         editMode() {
-            return this.enableEditMode && this.$root.socket.connected;
+            // Soca: layout editing requires the "components" permission.
+            return this.enableEditMode && this.$root.socket.connected && this.$root.can("components");
         },
 
         editIncidentMode() {
@@ -1009,6 +1131,15 @@ export default {
          */
         activeIncidents() {
             return this.incidentHistory.filter((i) => i.active && i.pin);
+        },
+
+        /**
+         * Soca: whether the right-hand maintenance sidebar has anything to show
+         * (active or upcoming). Drives the two-column layout on the status page.
+         * @returns {boolean} True if the sidebar should be rendered
+         */
+        hasSideMaintenance() {
+            return this.maintenanceList.length > 0 || this.upcomingMaintenanceList.length > 0;
         },
 
         /**
@@ -1119,6 +1250,13 @@ export default {
     async created() {
         this.hasToken = "token" in this.$root.storage();
 
+        // Soca: if logged in, authenticate the socket now (status pages normally skip
+        // socket IO) so the user's role/permissions load and admin controls can be
+        // gated per role — without having to enter layout edit mode first.
+        if (this.hasToken) {
+            this.$root.initSocketIO(true);
+        }
+
         // Browser change page
         // https://stackoverflow.com/questions/7317273/warn-user-before-leaving-web-page-with-unsaved-changes
         window.addEventListener("beforeunload", (e) => {
@@ -1169,6 +1307,11 @@ export default {
 
                 this.incident = res.data.incident;
                 this.maintenanceList = res.data.maintenanceList;
+                // Soca: upcoming/past maintenance (fallback to [] for older payloads)
+                this.upcomingMaintenanceList = res.data.upcomingMaintenanceList || [];
+                this.pastMaintenanceList = res.data.pastMaintenanceList || [];
+                // Default to the tab that has content (ongoing first, else scheduled)
+                this.maintTab = this.maintenanceList.length > 0 ? "active" : "scheduled";
                 this.$root.publicGroupList = res.data.publicGroupList;
 
                 this.loading = false;
@@ -1525,6 +1668,7 @@ export default {
                 investigating: "Investigating",
                 identified: "Identified",
                 monitoring: "Monitoring",
+                update: "Update",
                 resolved: "Resolved",
             }[s] || s || "Investigating";
         },
@@ -1846,6 +1990,26 @@ export default {
         },
 
         /**
+         * Soca: compact start/end date-time for a maintenance window (first timeslot),
+         * formatted in the maintenance's own timezone. Returns null when there is no
+         * fixed timeslot (e.g. manual maintenance).
+         * @param {object} m Public maintenance object
+         * @returns {{start: string, end: (string|null)}|null} Formatted range or null
+         */
+        maintTimeRange(m) {
+            const slot = m.timeslotList && m.timeslotList[0];
+            if (!slot || !slot.startDate) {
+                return null;
+            }
+            const tz = m.timezone || "UTC";
+            const fmt = (d) => dayjs(d).tz(tz, true).format("DD MMM HH:mm");
+            return {
+                start: fmt(slot.startDate),
+                end: slot.endDate ? fmt(slot.endDate) : null,
+            };
+        },
+
+        /**
          * Load incident history for the status page
          * @returns {void}
          */
@@ -2151,6 +2315,7 @@ footer {
     &.bg-success {
         color: #ffffff;
     }
+
     &.bg-info,
     &.bg-warning,
     &.bg-light {
@@ -2170,9 +2335,11 @@ footer {
     gap: 0.4rem;
     font-size: 13px;
 }
+
 .bm-affected-label {
     opacity: 0.7;
 }
+
 .bm-affected-chip {
     display: inline-block;
     padding: 1px 9px;
@@ -2259,10 +2426,12 @@ footer {
         margin-bottom: 0.4rem;
         opacity: 0.95;
     }
+
     .bm-live-bar {
         flex: 1;
         min-width: 0;
     }
+
     .bm-live-label {
         flex-shrink: 0;
         display: inline-flex;
@@ -2312,6 +2481,7 @@ footer {
         cursor: pointer;
         transition: opacity 0.1s;
     }
+
     .bm-seg:hover {
         opacity: 0.7;
     }
@@ -2319,6 +2489,7 @@ footer {
     .bm-seg.bm-has-note {
         box-shadow: inset 0 0 0 2px rgba(24, 95, 165, 0.85);
     }
+
     .bm-seg.bm-editable {
         cursor: pointer;
     }
@@ -2343,6 +2514,7 @@ footer {
             display: inline-flex;
             align-items: center;
         }
+
         .bm-leg {
             width: 11px;
             height: 11px;
@@ -2367,6 +2539,7 @@ footer {
         opacity: 1;
         transform: scale(1);
     }
+
     50% {
         opacity: 0.35;
         transform: scale(0.7);
@@ -2393,28 +2566,33 @@ footer {
         font-weight: 600;
         font-size: 12px;
     }
+
     .bt-status {
         margin-top: 3px;
         display: flex;
         align-items: center;
         gap: 6px;
     }
+
     .bt-dot {
         width: 8px;
         height: 8px;
         border-radius: 2px;
         flex-shrink: 0;
     }
+
     .bt-resp {
         margin-top: 3px;
         opacity: 0.7;
     }
+
     .bt-note {
         margin-top: 6px;
         padding-top: 6px;
         border-top: 1px solid rgba(0, 0, 0, 0.12);
         font-weight: 500;
     }
+
     .bt-rel-title {
         margin-top: 8px;
         font-size: 9px;
@@ -2423,17 +2601,20 @@ footer {
         letter-spacing: 0.06em;
         opacity: 0.55;
     }
+
     .bt-rel {
         margin-top: 3px;
         padding-left: 10px;
         position: relative;
     }
+
     .bt-rel::before {
         content: "•";
         position: absolute;
         left: 0;
         opacity: 0.6;
     }
+
     .bt-rel .bt-rel-tag {
         opacity: 0.7;
     }
@@ -2448,6 +2629,7 @@ footer {
     flex-wrap: wrap;
     margin-bottom: 0.75rem;
 }
+
 .bm-more-link {
     font-size: 13px;
     font-weight: 500;
@@ -2455,57 +2637,402 @@ footer {
     color: #185fa5;
     text-decoration: none;
 }
+
 .bm-more-link:hover {
     text-decoration: underline;
 }
 
-// Soca: scheduled maintenance card (shown above the monitor list)
-.bm-maint {
-    border: 1px solid #cfe2f6;
-    border-left: 4px solid #185fa5;
-    background: #f1f7fd;
-    border-radius: 12px;
-    padding: 0.9rem 1.25rem;
+// Soca: two-column status layout — main content on the left, maintenance sidebar on the right
+.bm-layout.bm-has-side {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+}
+
+.bm-layout-main {
+    flex: 1 1 auto;
+    min-width: 0; // allow the 90-day uptime bars to shrink instead of overflowing
+}
+
+.bm-layout-side {
+    flex: 0 0 clamp(360px, 38%, 460px);
+    position: sticky;
+    top: 1rem;
+}
+
+@media (max-width: 991px) {
+    .bm-layout.bm-has-side {
+        flex-direction: column;
+    }
+
+    .bm-layout-side {
+        flex-basis: auto;
+        width: 100%;
+        position: static;
+        top: auto;
+        order: -1; // surface maintenance above the status content on small screens
+    }
+}
+
+// Soca: single maintenance box with tabs (Maintenance / Scheduled Maintenance)
+.bm-maint-box {
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+}
+
+// Distinct coloured header bar for the maintenance box
+.bm-maint-tabs {
+    display: flex;
+    background: linear-gradient(135deg, #15314f, #1d4b7a);
+}
+
+.bm-maint-tab {
+    flex: 1 1 0;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0.8rem 0.5rem;
+    cursor: pointer;
+}
+
+// Active tab differs by background only (no underline / no text change)
+.bm-maint-tab.active {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.bm-maint-tabbody {
+    padding: 0;
+}
+
+.bm-maint-empty {
+    font-size: 13px;
+    opacity: 0.6;
+    padding: 1.25rem 1.1rem;
+}
+
+.bm-maint-box-foot {
+    padding: 0.7rem 1.1rem 0.95rem;
+    border-top: 1px solid rgba(128, 128, 128, 0.12);
+}
+
+.bm-maint-box-foot .bm-more-link {
+    font-size: 12px;
+}
+
+// Maintenance table inside the tabbed box
+.bm-maint-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.bm-maint-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    opacity: 0.55;
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.bm-maint-table th:first-child,
+.bm-maint-table td:first-child {
+    padding-left: 1.1rem;
+}
+
+.bm-maint-table th:last-child,
+.bm-maint-table td:last-child {
+    padding-right: 1.1rem;
+}
+
+.bm-maint-table th:nth-child(1) { width: 28%; }
+.bm-maint-table th:nth-child(2) { width: 24%; }
+.bm-maint-table th:nth-child(3) { width: 26%; }
+.bm-maint-table th:nth-child(4) { width: 22%; }
+
+.bm-maint-table td {
+    padding: 0.7rem 0.5rem;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+    word-break: break-word;
+}
+
+.bm-maint-table tr:last-child td {
+    border-bottom: none;
+}
+
+.bm-mt-title {
+    font-weight: 700;
+}
+
+// Status label — coloured text only (no background)
+.bm-mt-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.bm-mt-badge .bm-maint-dot {
+    display: none;
+}
+
+.bm-mt-active {
     color: #185fa5;
+}
+
+.bm-mt-scheduled {
+    color: #c1820a;
+}
+
+.dark .bm-mt-active {
+    color: #5a9bd8;
+}
+
+.dark .bm-mt-scheduled {
+    color: #e0b85a;
+}
+
+// Date/time cell
+.bm-mt-time {
+    line-height: 1.45;
+    white-space: nowrap;
+}
+
+.bm-mt-tz {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+// Affected systems chips
+.bm-mt-chip {
+    display: inline-block;
+    font-size: 11px;
+    background: rgba(24, 95, 165, 0.1);
+    color: #185fa5;
+    border-radius: 6px;
+    padding: 1px 7px;
+    margin: 0 4px 4px 0;
+}
+
+.bm-mt-none {
+    opacity: 0.45;
+}
+
+.dark .bm-mt-chip {
+    background: rgba(120, 170, 220, 0.16);
+    color: #9ec3e8;
+}
+
+// Soca: maintenance announcement card (active / upcoming / past)
+// Per-state theming is driven by the CSS custom properties below.
+.bm-maint {
+    --maint-accent: #185fa5;
+    --maint-accent-soft: #4f8fd1;
+    --maint-bg-1: #f3f8fe;
+    --maint-bg-2: #e8f1fc;
+    --maint-border: #cfe2f6;
+    --maint-title: #14456f;
+    --maint-desc: #3a566f;
+    --maint-time: #5b748d;
+
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--maint-border);
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
+    background: linear-gradient(135deg, var(--maint-bg-1), var(--maint-bg-2));
+    box-shadow: 0 1px 2px rgba(15, 39, 64, 0.04);
+
+    // Accent rail on the left edge
+    &::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: var(--maint-accent);
+    }
+
+    .bm-maint-badge {
+        flex: 0 0 auto;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--maint-accent);
+        color: #fff;
+        font-size: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+
+    .bm-maint-body {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
 
     .bm-maint-head {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 15px;
-        font-weight: 600;
+        gap: 0.6rem;
     }
-    .bm-maint-icon {
-        color: #185fa5;
-    }
+
     .bm-maint-title {
         flex: 1;
+        min-width: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--maint-title);
+        line-height: 1.3;
     }
+
     .bm-maint-tag {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
-        background: #185fa5;
+        letter-spacing: 0.4px;
+        background: var(--maint-accent);
         color: #fff;
         border-radius: 999px;
-        padding: 2px 10px;
+        padding: 3px 11px;
+        white-space: nowrap;
     }
+
+    .bm-maint-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+        animation: bm-maint-pulse 1.6s infinite;
+    }
+
     .bm-maint-desc {
-        margin-top: 0.4rem;
-        color: #3a566f;
+        margin-top: 0.35rem;
+        color: var(--maint-desc);
         font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .bm-maint-time {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.6rem;
+        color: var(--maint-time);
+        font-size: 13px;
+    }
+
+    .bm-maint-time-icon {
+        color: var(--maint-accent-soft);
+        font-size: 13px;
+    }
+    // Tighten the embedded MaintenanceTime pills to match the row
+    .timeslot {
+        margin-top: 0;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--maint-border);
+        color: var(--maint-time);
     }
 }
 
-.dark .bm-maint {
-    background: #1b2735;
-    border-color: #2d4257;
-    color: #7fb2e8;
-
-    .bm-maint-desc {
-        color: #a9c2db;
+@keyframes bm-maint-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
     }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}
+
+/* Soca: upcoming (scheduled) maintenance — amber accent */
+.bm-maint-upcoming {
+    --maint-accent: #c1820a;
+    --maint-accent-soft: #d6a23a;
+    --maint-bg-1: #fefaf1;
+    --maint-bg-2: #fcf2dd;
+    --maint-border: #f1e2bd;
+    --maint-title: #7a5500;
+    --maint-desc: #6b5a33;
+    --maint-time: #87723f;
+}
+
+/* Soca: past (completed) maintenance — muted/green-gray accent */
+.bm-maint-past {
+    --maint-accent: #5a9a6b;
+    --maint-accent-soft: #7fb38c;
+    --maint-bg-1: #f7faf8;
+    --maint-bg-2: #eef4f0;
+    --maint-border: #d8e4dc;
+    --maint-title: #3f5a48;
+    --maint-desc: #5a6b60;
+    --maint-time: #6d7e73;
+}
+
+.dark .bm-maint {
+    --maint-accent: #2f7dc7;
+    --maint-accent-soft: #5a9bd8;
+    --maint-bg-1: #16212e;
+    --maint-bg-2: #1a2836;
+    --maint-border: #2c4259;
+    --maint-title: #cfe2f6;
+    --maint-desc: #a9c2db;
+    --maint-time: #8aa6c0;
+    box-shadow: none;
+
+    .bm-maint-badge {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    }
+
+    .timeslot {
+        background: rgba(255, 255, 255, 0.06);
+    }
+}
+
+.dark .bm-maint-upcoming {
+    --maint-accent: #d4a23a;
+    --maint-accent-soft: #e0b85a;
+    --maint-bg-1: #221d12;
+    --maint-bg-2: #2a2316;
+    --maint-border: #463c22;
+    --maint-title: #e8c878;
+    --maint-desc: #c9b483;
+    --maint-time: #b7a36f;
+}
+
+.dark .bm-maint-past {
+    --maint-accent: #5a9a6b;
+    --maint-accent-soft: #79ad88;
+    --maint-bg-1: #161d19;
+    --maint-bg-2: #1a2420;
+    --maint-border: #2c3a31;
+    --maint-title: #a7c2b1;
+    --maint-desc: #8fa597;
+    --maint-time: #7e948a;
 }
 
 .maintenance-bg-info {
@@ -2605,5 +3132,71 @@ footer {
     .incident-list-box {
         padding: 0;
     }
+}
+</style>
+
+<!-- Soca: square (non-rounded) corners for every box/section on the status page.
+     Non-scoped + gated by .bm-status-page so it also reaches child components
+     (IncidentHistory, etc.) but never leaks to other pages. -->
+<!-- eslint-disable-next-line vue-scoped-css/enforce-style-type -->
+<style lang="scss">
+.bm-status-page .shadow-box,
+.bm-status-page .bm-maint-box,
+.bm-status-page .bm-maint,
+.bm-status-page .incident,
+.bm-status-page .incident-card,
+.bm-status-page .incident-header,
+.bm-status-page .incident-list-box,
+.bm-status-page .incident-item,
+.bm-status-page .incident-list-box-body,
+.bm-status-page .bm-uptime,
+.bm-status-page .bm-tooltip,
+.bm-status-page .bm-seg,
+.bm-status-page .bm-leg {
+    border-radius: 0 !important;
+}
+
+/* Flat look: drop the drop-shadow but keep a solid fill + thin border as separator.
+   (.shadow-box has no background of its own on the light theme — it only looked
+   like a card because of the shadow, so it turned transparent once that was gone.) */
+.bm-status-page .shadow-box,
+.bm-status-page .bm-maint-box {
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+    border: 1px solid #c5ccd3 !important;
+}
+
+.dark .bm-status-page .shadow-box,
+.dark .bm-status-page .bm-maint-box {
+    background-color: #0d1117 !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Sharpen faint grey text for readability.
+   Opacity-based labels: raise opacity (theme-safe). */
+.bm-status-page .bm-maint-table th {
+    opacity: 0.9 !important;
+}
+
+.bm-status-page .bm-mt-tz,
+.bm-status-page .bm-maint-empty {
+    opacity: 0.85 !important;
+}
+
+.bm-status-page .bm-mt-none {
+    opacity: 0.7 !important;
+}
+
+/* Fixed-grey labels: use a darker grey on light theme, lighter on dark theme. */
+.bm-status-page .bm-section-label,
+.bm-status-page .bm-group-name,
+.bm-status-page .bm-bar-meta {
+    color: #5f6873 !important;
+}
+
+.dark .bm-status-page .bm-section-label,
+.dark .bm-status-page .bm-group-name,
+.dark .bm-status-page .bm-bar-meta {
+    color: #b3b9c0 !important;
 }
 </style>

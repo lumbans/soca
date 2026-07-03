@@ -133,6 +133,7 @@ export default {
                 investigating: "Investigating",
                 identified: "Identified",
                 monitoring: "Monitoring",
+                update: "Update",
                 resolved: "Resolved",
             }[s] || s || "Investigating";
         },

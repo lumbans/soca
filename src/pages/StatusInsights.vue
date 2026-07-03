@@ -1,13 +1,14 @@
 <template>
     <div class="insights-page">
         <div class="ins-header">
-            <div class="ins-brand">{{ config.title || "Status" }} — History &amp; Uptime</div>
+            <div class="ins-brand">{{ config.title || "Status" }} — History, Uptime &amp; Maintenance</div>
             <router-link :to="'/status/' + slug" class="ins-back">← Status</router-link>
         </div>
 
         <div class="ins-tabs">
             <div class="ins-tab" :class="{ active: tab === 'history' }" @click="switchTab('history')">Incident History</div>
             <div class="ins-tab" :class="{ active: tab === 'uptime' }" @click="switchTab('uptime')">Uptime</div>
+            <div class="ins-tab" :class="{ active: tab === 'maintenance' }" @click="switchTab('maintenance')">Maintenance</div>
         </div>
 
         <!-- History tab -->
@@ -59,18 +60,69 @@
                 :uptime="(calendar[m.id] && calendar[m.id].uptime) ?? null"
             />
         </div>
+
+        <!-- Maintenance tab -->
+        <div v-show="tab === 'maintenance'">
+            <!-- Upcoming -->
+            <template v-if="upcomingMaint.length > 0">
+                <div class="ins-inc-date">Akan Datang</div>
+                <div v-for="m in upcomingMaint" :key="'um' + m.id" class="ins-maint-card">
+                    <div class="ins-inc-titlerow">
+                        <span class="ins-inc-title">{{ m.title }}</span>
+                        <span class="ins-badges">
+                            <span class="ins-tag" :class="maintTagClass(m.status)">{{ maintStatusLabel(m.status) }}</span>
+                        </span>
+                    </div>
+                    <div v-if="m.description" class="ins-maint-desc">{{ m.description }}</div>
+                    <MaintenanceTime :maintenance="m" />
+                </div>
+            </template>
+
+            <!-- Active (currently running) -->
+            <template v-if="activeMaint.length > 0">
+                <div class="ins-inc-date">Sedang Berlangsung</div>
+                <div v-for="m in activeMaint" :key="'am' + m.id" class="ins-maint-card">
+                    <div class="ins-inc-titlerow">
+                        <span class="ins-inc-title">{{ m.title }}</span>
+                        <span class="ins-badges">
+                            <span class="ins-tag" :class="maintTagClass(m.status)">{{ maintStatusLabel(m.status) }}</span>
+                        </span>
+                    </div>
+                    <div v-if="m.description" class="ins-maint-desc">{{ m.description }}</div>
+                    <MaintenanceTime :maintenance="m" />
+                </div>
+            </template>
+
+            <!-- Past history -->
+            <div class="ins-inc-date">Riwayat</div>
+            <div v-if="pastMaint.length === 0" class="ins-empty">Belum ada riwayat maintenance.</div>
+            <div v-for="(group, date) in pastMaintByDate" :key="date" class="ins-inc-day">
+                <div class="ins-inc-date">{{ date }}</div>
+                <div v-for="m in group" :key="'pm' + m.id" class="ins-maint-card">
+                    <div class="ins-inc-titlerow">
+                        <span class="ins-inc-title">{{ m.title }}</span>
+                        <span class="ins-badges">
+                            <span class="ins-tag" :class="maintTagClass(m.status)">{{ maintStatusLabel(m.status) }}</span>
+                        </span>
+                    </div>
+                    <div v-if="m.description" class="ins-maint-desc">{{ m.description }}</div>
+                    <MaintenanceTime :maintenance="m" />
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
 import axios from "axios";
 import UptimeCalendar from "../components/UptimeCalendar.vue";
+import MaintenanceTime from "../components/MaintenanceTime.vue";
 
 const MONTHS_FULL = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 export default {
-    components: { UptimeCalendar },
+    components: { UptimeCalendar, MaintenanceTime },
     data() {
         return {
             slug: this.$route.params.slug || "default",
@@ -81,6 +133,10 @@ export default {
             incidents: [],
             curMonth: "",
             calFilter: "",
+            // Soca: maintenance history (active / upcoming / past)
+            activeMaint: [],
+            upcomingMaint: [],
+            pastMaint: [],
         };
     },
     computed: {
@@ -116,9 +172,31 @@ export default {
             }
             return this.monitors.filter((m) => String(m.id) === String(this.calFilter));
         },
+        /**
+         * Past maintenance grouped by the formatted day it ended (newest day first;
+         * backend already returns the list most-recent first).
+         * @returns {object} Map of date label -> maintenance array
+         */
+        pastMaintByDate() {
+            const out = {};
+            for (const m of this.pastMaint) {
+                const key = this.fmtDate(this.maintEndDate(m));
+                if (!out[key]) {
+                    out[key] = [];
+                }
+                out[key].push(m);
+            }
+            return out;
+        },
     },
     mounted() {
-        this.tab = this.$route.path.endsWith("/uptime") ? "uptime" : "history";
+        if (this.$route.path.endsWith("/uptime")) {
+            this.tab = "uptime";
+        } else if (this.$route.path.endsWith("/maintenance")) {
+            this.tab = "maintenance";
+        } else {
+            this.tab = "history";
+        }
         this.curMonth = this.thisMonthKey();
         this.load();
     },
@@ -167,6 +245,23 @@ export default {
                 .catch(() => {});
 
             this.loadAllIncidents();
+            this.loadMaintenance();
+        },
+
+        /**
+         * Load the full maintenance history (active / upcoming / past).
+         * @returns {Promise<void>}
+         */
+        async loadMaintenance() {
+            try {
+                const r = await axios.get("/api/status-page/" + this.slug + "/maintenance-history");
+                const data = r.data || {};
+                this.activeMaint = data.active || [];
+                this.upcomingMaint = data.upcoming || [];
+                this.pastMaint = data.past || [];
+            } catch (e) {
+                // ignore
+            }
         },
 
         /**
@@ -293,7 +388,7 @@ export default {
          * @returns {string} Label
          */
         statusLabel(s) {
-            return { investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", resolved: "Resolved" }[s] || s;
+            return { investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", update: "Update", resolved: "Resolved" }[s] || s;
         },
 
         /**
@@ -303,6 +398,43 @@ export default {
          */
         impactLabel(s) {
             return { none: "None", minor: "Minor", major: "Major", critical: "Critical" }[s] || s;
+        },
+
+        /**
+         * The end date of a maintenance (last timeslot end, falling back to the date range).
+         * @param {object} m Public maintenance object
+         * @returns {string} Date string (ISO or stored form)
+         */
+        maintEndDate(m) {
+            const slots = m.timeslotList || [];
+            const last = slots[slots.length - 1];
+            return (last && last.endDate) || (m.dateRange && m.dateRange[1]) || (m.dateRange && m.dateRange[0]) || "";
+        },
+
+        /**
+         * Human label for a maintenance status.
+         * @param {string} s Maintenance status key
+         * @returns {string} Label
+         */
+        maintStatusLabel(s) {
+            return {
+                "under-maintenance": "In Progress",
+                scheduled: "Scheduled",
+                ended: "Completed",
+            }[s] || s;
+        },
+
+        /**
+         * Badge class for a maintenance status.
+         * @param {string} s Maintenance status key
+         * @returns {string} CSS class
+         */
+        maintTagClass(s) {
+            return {
+                "under-maintenance": "tag-maint-active",
+                scheduled: "tag-maint-scheduled",
+                ended: "tag-maint-ended",
+            }[s] || "tag-maint-ended";
         },
     },
 };
@@ -333,6 +465,7 @@ export default {
 .ins-badges { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 .ins-tag { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
 .tag-resolved { background: #e1f5ee; color: #1d9e75; }
+.tag-update { background: #e8f0fe; color: #2c6ecb; }
 .tag-monitoring { background: #faeeda; color: #ba7517; }
 .tag-identified { background: #faece7; color: #d85a30; }
 .tag-investigating { background: #fcebeb; color: #e24b4a; }
@@ -348,4 +481,12 @@ export default {
 .ins-filter-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px; }
 .ins-section-label { font-size: 13px; opacity: 0.6; }
 .ins-select { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.35); background: none; color: inherit; max-width: 260px; }
+
+/* Soca: maintenance history cards */
+.ins-maint-card { margin-bottom: 1.25rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgba(128, 128, 128, 0.12); }
+.ins-maint-card:last-child { border-bottom: none; }
+.ins-maint-desc { font-size: 13px; opacity: 0.8; margin: 0.35rem 0 0.5rem; line-height: 1.5; }
+.tag-maint-active { background: #e7f0fa; color: #185fa5; }
+.tag-maint-scheduled { background: #faf1dd; color: #b07a0c; }
+.tag-maint-ended { background: #e8f3ec; color: #3f8a57; }
 </style>

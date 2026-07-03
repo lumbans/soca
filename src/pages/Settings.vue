@@ -37,7 +37,7 @@
                     </a>
                 </div>
                 <div class="settings-content col-lg-9 col-md-7">
-                    <div v-if="currentPage" class="settings-content-header">
+                    <div v-if="currentPage && subMenus[currentPage]" class="settings-content-header">
                         {{ subMenus[currentPage].title }}
                     </div>
                     <div class="mx-3">
@@ -84,44 +84,34 @@ export default {
         },
 
         subMenus() {
-            return {
-                general: {
-                    title: this.$t("General"),
-                },
-                appearance: {
-                    title: this.$t("Appearance"),
-                },
-                notifications: {
-                    title: this.$t("Notifications"),
-                },
-                "reverse-proxy": {
-                    title: this.$t("Reverse Proxy"),
-                },
-                tags: {
-                    title: this.$t("Tags"),
-                },
-                "monitor-history": {
-                    title: this.$t("Monitor History"),
-                },
-                "docker-hosts": {
-                    title: this.$t("Docker Hosts"),
-                },
-                "remote-browsers": {
-                    title: this.$t("Remote Browsers"),
-                },
-                security: {
-                    title: this.$t("Security"),
-                },
-                "api-keys": {
-                    title: this.$t("API Keys"),
-                },
-                proxies: {
-                    title: this.$t("Proxies"),
-                },
-                about: {
-                    title: this.$t("About"),
-                },
+            // Soca: each entry may declare a required permission. Entries with no
+            // permission (Appearance, Security, About) are available to everyone;
+            // the rest are gated by the current user's role.
+            const all = {
+                general: { title: this.$t("General"), permission: "settings" },
+                appearance: { title: this.$t("Appearance") },
+                users: { title: this.$t("Users"), permission: "users" },
+                roles: { title: this.$t("Roles"), permission: "users" },
+                "audit-log": { title: this.$t("Audit Log"), permission: "users" },
+                notifications: { title: this.$t("Notifications"), permission: "settings" },
+                "reverse-proxy": { title: this.$t("Reverse Proxy"), permission: "settings" },
+                tags: { title: this.$t("Tags"), permission: "components" },
+                "monitor-history": { title: this.$t("Monitor History"), permission: "settings" },
+                "docker-hosts": { title: this.$t("Docker Hosts"), permission: "settings" },
+                "remote-browsers": { title: this.$t("Remote Browsers"), permission: "settings" },
+                security: { title: this.$t("Security") },
+                "api-keys": { title: this.$t("API Keys"), permission: "settings" },
+                proxies: { title: this.$t("Proxies"), permission: "settings" },
+                about: { title: this.$t("About") },
             };
+
+            const result = {};
+            for (const [ key, item ] of Object.entries(all)) {
+                if (!item.permission || this.$root.can(item.permission)) {
+                    result[key] = item;
+                }
+            }
+            return result;
         },
     },
 
@@ -144,7 +134,9 @@ export default {
          */
         loadGeneralPage() {
             if (!this.currentPage && !this.$root.isMobile) {
-                this.$router.push("/settings/general");
+                // Soca: land on the first sub-page the current user is allowed to see.
+                const firstKey = Object.keys(this.subMenus)[0] || "appearance";
+                this.$router.push(`/settings/${firstKey}`);
             }
         },
 

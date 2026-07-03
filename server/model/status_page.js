@@ -2,6 +2,8 @@ const { BeanModel } = require("redbean-node/dist/bean-model");
 const { R } = require("redbean-node");
 const cheerio = require("cheerio");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
+// Soca: shared dashboard room for multi-user live broadcasts.
+const { SHARED_DASHBOARD_ROOM } = require("../shared-room");
 const jsesc = require("jsesc");
 const analytics = require("../analytics/analytics");
 const { marked } = require("marked");
@@ -324,7 +326,8 @@ class StatusPage extends BeanModel {
         // Soca: attach the lifecycle timeline to each active incident
         await StatusPage.attachIncidentUpdates(incidents);
 
-        let maintenanceList = await StatusPage.getMaintenanceList(statusPage.id);
+        // Soca: categorized maintenance (active / upcoming / past)
+        let maintenance = await StatusPage.getMaintenanceList(statusPage.id);
 
         // Public Group List
         const publicGroupList = [];
@@ -342,7 +345,11 @@ class StatusPage extends BeanModel {
             config,
             incidents,
             publicGroupList,
-            maintenanceList,
+            // Soca: `maintenanceList` keeps its original meaning (currently-active windows)
+            // for backward compatibility; upcoming/past are new sibling lists.
+            maintenanceList: maintenance.active,
+            upcomingMaintenanceList: maintenance.upcoming,
+            pastMaintenanceList: maintenance.past,
         };
     }
 
@@ -374,7 +381,8 @@ class StatusPage extends BeanModel {
             result[item.id] = await item.toJSON();
         }
 
-        io.to(socket.userID).emit("statusPageList", result);
+        // Soca: status pages are shared team-wide — notify all dashboard clients.
+        io.to(SHARED_DASHBOARD_ROOM).emit("statusPageList", result);
         return list;
     }
 
@@ -593,13 +601,19 @@ class StatusPage extends BeanModel {
     }
 
     /**
-     * Get list of maintenances
+     * Get the maintenances of a status page, split into the categories the
+     * public page renders separately: currently-active, upcoming (scheduled)
+     * and past (ended). Inactive/unknown maintenances are omitted.
      * @param {number} statusPageId ID of status page to get maintenance for
-     * @returns {object} Object representing maintenances sanitized for public
+     * @param {number} pastLimit Max number of past maintenances to return
+     * @returns {Promise<{active: object[], upcoming: object[], past: object[]}>} Categorized public maintenance lists
      */
-    static async getMaintenanceList(statusPageId) {
+    static async getMaintenanceList(statusPageId, pastLimit = 15) {
+        const empty = { active: [], upcoming: [], past: [] };
         try {
-            const publicMaintenanceList = [];
+            const active = [];
+            const upcoming = [];
+            const past = [];
 
             let maintenanceIDList = await R.getCol(
                 `
@@ -610,16 +624,58 @@ class StatusPage extends BeanModel {
                 [statusPageId]
             );
 
+            // Soca: attach the affected monitors (systems) to a public maintenance object
+            const attachAffected = async (pub, maintenanceID) => {
+                const monitors = await R.getAll(
+                    `SELECT mm.monitor_id AS id, m.name AS name
+                     FROM monitor_maintenance mm
+                     JOIN monitor m ON m.id = mm.monitor_id
+                     WHERE mm.maintenance_id = ?`,
+                    [maintenanceID]
+                );
+                pub.affectedMonitors = monitors.map((m) => ({ id: m.id, name: m.name }));
+                return pub;
+            };
+
             for (const maintenanceID of maintenanceIDList) {
                 let maintenance = UptimeKumaServer.getInstance().getMaintenance(maintenanceID);
-                if (maintenance && (await maintenance.isUnderMaintenance())) {
-                    publicMaintenanceList.push(await maintenance.toPublicJSON());
+                if (!maintenance) {
+                    continue;
+                }
+
+                const status = await maintenance.getStatus();
+                if (status !== "under-maintenance" && status !== "scheduled" && status !== "ended") {
+                    continue;
+                }
+
+                const pub = await attachAffected(await maintenance.toPublicJSON(), maintenanceID);
+                if (status === "under-maintenance") {
+                    active.push(pub);
+                } else if (status === "scheduled") {
+                    upcoming.push(pub);
+                } else {
+                    past.push(pub);
                 }
             }
 
-            return publicMaintenanceList;
+            // The earliest slot of a public maintenance, in ms (for sorting).
+            const startKey = (m) => dayjs(m.timeslotList?.[0]?.startDate || m.dateRange?.[0] || 0).valueOf();
+            // The latest slot end of a public maintenance, in ms (for sorting).
+            const endKey = (m) => {
+                const slot = m.timeslotList?.[m.timeslotList.length - 1];
+                return dayjs(slot?.endDate || m.dateRange?.[1] || 0).valueOf();
+            };
+
+            upcoming.sort((a, b) => startKey(a) - startKey(b)); // soonest first
+            past.sort((a, b) => endKey(b) - endKey(a)); // most recent first
+
+            return {
+                active,
+                upcoming,
+                past: past.slice(0, pastLimit),
+            };
         } catch (error) {
-            return [];
+            return empty;
         }
     }
 }

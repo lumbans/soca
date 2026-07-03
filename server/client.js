@@ -9,6 +9,8 @@ const io = server.io;
 const { setting } = require("./util-server");
 const checkVersion = require("./check-version");
 const Database = require("./database");
+// Soca: shared dashboard room for multi-user live broadcasts.
+const { SHARED_DASHBOARD_ROOM } = require("./shared-room");
 
 /**
  * Send list of notification providers to client
@@ -57,7 +59,8 @@ async function sendHeartbeatList(socket, monitorID, toUser = false, overwrite = 
     let result = list.reverse();
 
     if (toUser) {
-        io.to(socket.userID).emit("heartbeatList", monitorID, result, overwrite);
+        // Soca: heartbeats are shared team-wide — broadcast to all dashboard clients.
+        io.to(SHARED_DASHBOARD_ROOM).emit("heartbeatList", monitorID, result, overwrite);
     } else {
         socket.emit("heartbeatList", monitorID, result, overwrite);
     }
@@ -90,7 +93,8 @@ async function sendImportantHeartbeatList(socket, monitorID, toUser = false, ove
     const result = list.map((bean) => bean.toJSON());
 
     if (toUser) {
-        io.to(socket.userID).emit("importantHeartbeatList", monitorID, result, overwrite);
+        // Soca: events are shared team-wide — broadcast to all dashboard clients.
+        io.to(SHARED_DASHBOARD_ROOM).emit("importantHeartbeatList", monitorID, result, overwrite);
     } else {
         socket.emit("importantHeartbeatList", monitorID, result, overwrite);
     }

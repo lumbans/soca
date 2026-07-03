@@ -60,6 +60,7 @@
                                     <option value="investigating">Investigating</option>
                                     <option value="identified">Identified</option>
                                     <option value="monitoring">Monitoring</option>
+                                    <option value="update">Update</option>
                                     <option value="resolved">Resolved</option>
                                 </select>
                             </div>
@@ -99,6 +100,61 @@
                             </div>
                         </div>
                     </form>
+
+                    <!-- Soca: post a lifecycle status update (adds a timeline entry) -->
+                    <hr />
+                    <div class="post-update">
+                        <label class="form-label">{{ $t("Post Update") }}</label>
+                        <div class="row g-2">
+                            <div class="col-auto">
+                                <select v-model="update.status" class="form-select">
+                                    <option value="investigating">Investigating</option>
+                                    <option value="identified">Identified</option>
+                                    <option value="monitoring">Monitoring</option>
+                                    <option value="update">Update</option>
+                                    <option value="resolved">Resolved</option>
+                                </select>
+                            </div>
+                            <div class="col">
+                                <input
+                                    v-model="update.message"
+                                    class="form-control"
+                                    :placeholder="$t('Update message')"
+                                    @keyup.enter="postUpdate"
+                                />
+                            </div>
+                            <div class="col-auto">
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    :disabled="postingUpdate"
+                                    @click="postUpdate"
+                                >
+                                    <span
+                                        v-if="postingUpdate"
+                                        class="spinner-border spinner-border-sm me-1"
+                                        role="status"
+                                    ></span>
+                                    <font-awesome-icon v-else icon="bullhorn" class="me-1" />
+                                    {{ $t("Post") }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            {{ $t("Posting an update adds a timeline entry and changes the incident status.") }}
+                        </div>
+
+                        <!-- Current timeline -->
+                        <div v-if="timeline.length" class="incident-timeline mt-3">
+                            <div v-for="(u, idx) in timeline" :key="idx" class="timeline-item">
+                                <strong>{{ statusLabel(u.status) }}</strong>
+                                <span class="ms-1">{{ u.message }}</span>
+                                <div v-if="u.createdDate" class="small text-muted">
+                                    {{ $root.datetime(u.createdDate) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -149,8 +205,15 @@ export default {
         return {
             modal: null,
             processing: false,
+            postingUpdate: false,
             incidentId: null,
             pendingDeleteIncident: null,
+            // Soca: current incident timeline + the draft update to post
+            timeline: [],
+            update: {
+                status: "update",
+                message: "",
+            },
             form: {
                 title: "",
                 content: "",
@@ -186,6 +249,9 @@ export default {
                 // Soca: affected systems (convert objects to ids)
                 affectedMonitors: (incident.affectedMonitors || []).map((m) => m.id),
             };
+            // Soca: load the existing timeline + reset the update draft
+            this.timeline = (incident.updates || []).map((u) => ({ ...u }));
+            this.update = { status: "update", message: "" };
             this.modal.show();
         },
 
@@ -237,6 +303,54 @@ export default {
             this.form.affectedMonitors = current.includes(key)
                 ? current.filter((x) => x !== key)
                 : [...current, key];
+        },
+
+        /**
+         * Soca: post a lifecycle status update; appends a timeline entry and
+         * advances the incident's status (uses the existing addIncidentUpdate handler).
+         * @returns {void}
+         */
+        postUpdate() {
+            const message = (this.update.message || "").trim();
+            if (!message) {
+                this.$root.toastError(this.$t("Update message is required"));
+                return;
+            }
+
+            this.postingUpdate = true;
+            this.$root
+                .getSocket()
+                .emit("addIncidentUpdate", this.slug, this.incidentId, this.update.status, message, (res) => {
+                    this.postingUpdate = false;
+                    if (res.ok) {
+                        // Reflect the new entry locally (newest first) and sync the edited status.
+                        this.timeline.unshift({
+                            status: this.update.status,
+                            message,
+                            createdDate: res.incident ? res.incident.lastUpdatedDate : null,
+                        });
+                        this.form.incidentStatus = this.update.status;
+                        this.update = { status: "update", message: "" };
+                        this.$emit("incident-updated");
+                    } else {
+                        this.$root.toastError(res.msg);
+                    }
+                });
+        },
+
+        /**
+         * Soca: human label for a lifecycle status.
+         * @param {string} s Status key
+         * @returns {string} Human label
+         */
+        statusLabel(s) {
+            return {
+                investigating: "Investigating",
+                identified: "Identified",
+                monitoring: "Monitoring",
+                update: "Update",
+                resolved: "Resolved",
+            }[s] || s || "Investigating";
         },
 
         /**

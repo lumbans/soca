@@ -42,6 +42,7 @@
                     <option value="investigating">Investigating</option>
                     <option value="identified">Identified</option>
                     <option value="monitoring">Monitoring</option>
+                    <option value="update">Update</option>
                     <option value="resolved">Resolved</option>
                 </select>
             </div>

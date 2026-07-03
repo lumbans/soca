@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import mitt from "mitt";
 
 import { DOWN, MAINTENANCE, PENDING, UP } from "../util.ts";
+import { setPermissions, clearPermissions, can } from "../permissions-state.js";
 import {
     getDevContainerServerHostname,
     isDevContainer,
@@ -38,6 +39,9 @@ export default {
                 initedSocketIO: false,
             },
             username: null,
+            // Soca: RBAC — current user's role and computed permissions (from server).
+            userRole: null,
+            permissions: {},
             remember: localStorage.remember !== "0",
             allowLoginDialog: false, // Allowed to show login dialog, but "loggedIn" have to be true too. This exists because prevent the login dialog show 0.1s in first before the socket server auth-ed.
             loggedIn: false,
@@ -121,6 +125,27 @@ export default {
 
             socket.on("info", (info) => {
                 this.info = info;
+            });
+
+            // Soca: receive the logged-in user's role + permissions for UI gating.
+            socket.on("currentUser", (data) => {
+                this.username = data?.username ?? this.username;
+                this.userRole = data?.role ?? null;
+                this.permissions = data?.permissions ?? {};
+                setPermissions(this.userRole, this.permissions);
+
+                // Defense-in-depth: the route guard runs before permissions load on a
+                // hard navigation; re-check the current route now and leave if not allowed.
+                const meta = this.$route?.meta || {};
+                let allowed = true;
+                if (meta.permission) {
+                    allowed = can(meta.permission);
+                } else if (meta.anyPermission) {
+                    allowed = meta.anyPermission.some((p) => can(p));
+                }
+                if (!allowed) {
+                    this.$router.replace("/dashboard");
+                }
             });
 
             socket.on("setup", (monitorID, data) => {
@@ -465,7 +490,21 @@ export default {
             this.socket.token = null;
             this.loggedIn = false;
             this.username = null;
+            this.userRole = null;
+            this.permissions = {};
+            clearPermissions();
             this.clearData();
+        },
+
+        /**
+         * Soca: Does the current user have a given permission?
+         * Mirrors the server-side permission matrix (sent via the "currentUser"
+         * event). UI gating only — the server always enforces the real checks.
+         * @param {string} permission One of "users" | "settings" | "components" | "incidents"
+         * @returns {boolean} True if the current user is granted the permission
+         */
+        can(permission) {
+            return this.permissions?.[permission] === true;
         },
 
         /**

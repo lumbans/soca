@@ -32,6 +32,11 @@ const Security = () => import("./components/settings/Security.vue");
 import Proxies from "./components/settings/Proxies.vue";
 import About from "./components/settings/About.vue";
 import RemoteBrowsers from "./components/settings/RemoteBrowsers.vue";
+// Soca: user/role management page + permission helpers for route guarding.
+import Users from "./components/settings/Users.vue";
+import Roles from "./components/settings/Roles.vue";
+import AuditLog from "./components/settings/AuditLog.vue";
+import { can, permissionsState } from "./permissions-state.js";
 
 const routes = [
     {
@@ -65,6 +70,7 @@ const routes = [
                                     {
                                         path: "/edit/:id",
                                         component: EditMonitor,
+                                        meta: { permission: "components" },
                                     },
                                 ],
                             },
@@ -73,10 +79,12 @@ const routes = [
                     {
                         path: "/add",
                         component: EditMonitor,
+                        meta: { permission: "components" },
                         children: [
                             {
                                 path: "/clone/:id",
                                 component: EditMonitor,
+                                meta: { permission: "components" },
                             },
                         ],
                     },
@@ -91,34 +99,56 @@ const routes = [
                             {
                                 path: "general",
                                 component: General,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "appearance",
                                 component: Appearance,
                             },
                             {
+                                path: "users",
+                                component: Users,
+                                meta: { permission: "users" },
+                            },
+                            {
+                                path: "roles",
+                                component: Roles,
+                                meta: { permission: "users" },
+                            },
+                            {
+                                path: "audit-log",
+                                component: AuditLog,
+                                meta: { permission: "users" },
+                            },
+                            {
                                 path: "notifications",
                                 component: Notifications,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "reverse-proxy",
                                 component: ReverseProxy,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "tags",
                                 component: Tags,
+                                meta: { permission: "components" },
                             },
                             {
                                 path: "monitor-history",
                                 component: MonitorHistory,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "docker-hosts",
                                 component: DockerHosts,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "remote-browsers",
                                 component: RemoteBrowsers,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "security",
@@ -127,10 +157,12 @@ const routes = [
                             {
                                 path: "api-keys",
                                 component: APIKeys,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "proxies",
                                 component: Proxies,
+                                meta: { permission: "settings" },
                             },
                             {
                                 path: "about",
@@ -141,26 +173,32 @@ const routes = [
                     {
                         path: "/manage-status-page",
                         component: ManageStatusPage,
+                        meta: { anyPermission: [ "components", "incidents" ] },
                     },
                     {
                         path: "/add-status-page",
                         component: AddStatusPage,
+                        meta: { permission: "components" },
                     },
                     {
                         path: "/maintenance",
                         component: ManageMaintenance,
+                        meta: { permission: "components" },
                     },
                     {
                         path: "/add-maintenance",
                         component: EditMaintenance,
+                        meta: { permission: "components" },
                     },
                     {
                         path: "/maintenance/edit/:id",
                         component: EditMaintenance,
+                        meta: { permission: "components" },
                     },
                     {
                         path: "/maintenance/clone/:id",
                         component: EditMaintenance,
+                        meta: { permission: "components" },
                     },
                 ],
             },
@@ -193,6 +231,11 @@ const routes = [
         component: StatusInsights,
     },
     {
+        // Soca: dedicated maintenance history page
+        path: "/status/:slug/maintenance",
+        component: StatusInsights,
+    },
+    {
         path: "/status/:slug",
         component: StatusPage,
     },
@@ -206,4 +249,31 @@ export const router = createRouter({
     linkActiveClass: "active",
     history: createWebHistory(),
     routes,
+});
+
+// Soca: gate navigation by role. UX / defense-in-depth only — the server always
+// enforces the real permission checks. If permissions aren't loaded yet (before
+// login), navigation is allowed and the auth flow takes over.
+router.beforeEach((to, from, next) => {
+    const meta = to.meta || {};
+
+    // Permissions not known yet (e.g. hard refresh before login completes):
+    // let the auth flow decide; the menu hiding + server still enforce access.
+    if (!permissionsState.loaded) {
+        return next();
+    }
+
+    let allowed = true;
+
+    if (meta.permission) {
+        allowed = can(meta.permission);
+    } else if (meta.anyPermission) {
+        allowed = meta.anyPermission.some((p) => can(p));
+    }
+
+    if (!allowed) {
+        next("/dashboard");
+    } else {
+        next();
+    }
 });

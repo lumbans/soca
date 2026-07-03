@@ -641,6 +641,25 @@ exports.checkLogin = (socket) => {
 };
 
 /**
+ * Soca: Check that the logged-in user's role grants a permission.
+ * Throws if the user is not logged in or lacks the permission.
+ * @param {Socket} socket Socket instance
+ * @param {string} permission One of permissions.PERMISSIONS
+ * @returns {void}
+ * @throws The user is not logged in
+ * @throws The user does not have the required permission
+ */
+exports.checkPermission = (socket, permission) => {
+    const { roleHasPermission } = require("./permissions");
+    if (!socket.userID) {
+        throw new Error("You are not logged in.");
+    }
+    if (!roleHasPermission(socket.userRole, permission)) {
+        throw new Error("You do not have permission to perform this action.");
+    }
+};
+
+/**
  * For logged-in users, double-check the password
  * @param {Socket} socket Socket.io instance
  * @param {string} currentPassword Password to validate

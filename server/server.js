@@ -108,12 +108,18 @@ const {
     setting,
     initJWTSecret,
     checkLogin,
+    checkPermission,
     doubleCheckPassword,
     shake256,
     SHAKE256_LENGTH,
     allowDevAllOrigin,
     printServerUrls,
 } = require("./util-server");
+
+// Soca: RBAC helpers
+const { getPermissions, ROLES, reloadRoles } = require("./permissions");
+// Soca: shared dashboard room for multi-user live broadcasts.
+const { SHARED_DASHBOARD_ROOM } = require("./shared-room");
 
 log.debug("server", "Importing Notification");
 const { Notification } = require("./notification");
@@ -185,6 +191,11 @@ const { dockerSocketHandler } = require("./socket-handlers/docker-socket-handler
 const { maintenanceSocketHandler } = require("./socket-handlers/maintenance-socket-handler");
 const { apiKeySocketHandler } = require("./socket-handlers/api-key-socket-handler");
 const { generalSocketHandler } = require("./socket-handlers/general-socket-handler");
+// Soca: user/role management (site_admin only)
+const { userSocketHandler } = require("./socket-handlers/user-socket-handler");
+const { roleSocketHandler } = require("./socket-handlers/role-socket-handler");
+const { auditLogSocketHandler } = require("./socket-handlers/audit-log-socket-handler");
+const { audit, auditFromSocket, AuditAction, AuditCategory, AuditStatus } = require("./audit-log");
 const { Settings } = require("./settings");
 const apicache = require("./modules/apicache");
 const { resetChrome } = require("./monitor-types/real-browser-monitor-type");
@@ -456,6 +467,14 @@ let needSetup = false;
                     await afterLogin(socket, user);
 
                     log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
+                    audit({
+                        userId: user.id,
+                        username: user.username,
+                        action: AuditAction.LOGIN_SUCCESS,
+                        category: AuditCategory.AUTH,
+                        description: `User "${user.username}" logged in`,
+                        ip: clientIP,
+                    });
 
                     callback({
                         ok: true,
@@ -483,6 +502,14 @@ let needSetup = false;
                         ]);
 
                         log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
+                        audit({
+                            userId: user.id,
+                            username: user.username,
+                            action: AuditAction.LOGIN_SUCCESS,
+                            category: AuditCategory.AUTH,
+                            description: `User "${user.username}" logged in (2FA)`,
+                            ip: clientIP,
+                        });
 
                         callback({
                             ok: true,
@@ -490,6 +517,15 @@ let needSetup = false;
                         });
                     } else {
                         log.warn("auth", `Invalid token provided for user ${data.username}. IP=${clientIP}`);
+                        audit({
+                            userId: user.id,
+                            username: user.username,
+                            action: AuditAction.LOGIN_FAILURE,
+                            category: AuditCategory.AUTH,
+                            status: AuditStatus.FAILURE,
+                            description: `Failed login for "${data.username}": invalid 2FA token`,
+                            ip: clientIP,
+                        });
 
                         callback({
                             ok: false,
@@ -500,6 +536,15 @@ let needSetup = false;
                 }
             } else {
                 log.warn("auth", `Incorrect username or password for user ${data.username}. IP=${clientIP}`);
+                audit({
+                    userId: null,
+                    username: data.username,
+                    action: AuditAction.LOGIN_FAILURE,
+                    category: AuditCategory.AUTH,
+                    status: AuditStatus.FAILURE,
+                    description: `Failed login for "${data.username}": incorrect username or password`,
+                    ip: clientIP,
+                });
 
                 callback({
                     ok: false,
@@ -515,8 +560,21 @@ let needSetup = false;
                 return;
             }
 
+            // Soca: record the logout while we still know who the user is.
+            if (socket.userID) {
+                await auditFromSocket(socket, {
+                    action: AuditAction.LOGOUT,
+                    category: AuditCategory.AUTH,
+                    description: `User "${socket.username}" logged out`,
+                });
+            }
+
             socket.leave(socket.userID);
+            // Soca: also leave the shared dashboard room.
+            socket.leave(SHARED_DASHBOARD_ROOM);
             socket.userID = null;
+            socket.userRole = null;
+            socket.username = null;
 
             if (typeof callback === "function") {
                 callback();
@@ -580,6 +638,11 @@ let needSetup = false;
                 await R.exec("UPDATE `user` SET twofa_status = 1 WHERE id = ? ", [socket.userID]);
 
                 log.info("auth", `Saved 2FA token. IP=${clientIP}`);
+                await auditFromSocket(socket, {
+                    action: AuditAction.TWOFA_ENABLE,
+                    category: AuditCategory.AUTH,
+                    description: `User "${socket.username}" enabled two-factor authentication`,
+                });
 
                 callback({
                     ok: true,
@@ -609,6 +672,11 @@ let needSetup = false;
                 await TwoFA.disable2FA(socket.userID);
 
                 log.info("auth", `Disabled 2FA token. IP=${clientIP}`);
+                await auditFromSocket(socket, {
+                    action: AuditAction.TWOFA_DISABLE,
+                    category: AuditCategory.AUTH,
+                    description: `User "${socket.username}" disabled two-factor authentication`,
+                });
 
                 callback({
                     ok: true,
@@ -699,6 +767,8 @@ let needSetup = false;
                 let user = R.dispense("user");
                 user.username = username;
                 user.password = await passwordHash.generate(password);
+                // Soca: the first account is always the full-access site admin.
+                user.role = ROLES.SITE_ADMIN;
                 await R.store(user);
 
                 needSetup = false;
@@ -724,7 +794,7 @@ let needSetup = false;
         // Add a new monitor
         socket.on("add", async (monitor, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
                 let bean = R.dispense("monitor");
 
                 let notificationIDList = monitor.notificationIDList;
@@ -779,6 +849,13 @@ let needSetup = false;
                 }
 
                 log.info("monitor", `Added Monitor: ${bean.id} User ID: ${socket.userID}`);
+                await auditFromSocket(socket, {
+                    action: AuditAction.MONITOR_CREATE,
+                    category: AuditCategory.COMPONENT,
+                    entityType: "monitor",
+                    entityId: bean.id,
+                    description: `Added monitor "${bean.name}" (type=${bean.type})`,
+                });
 
                 callback({
                     ok: true,
@@ -800,12 +877,14 @@ let needSetup = false;
         socket.on("editMonitor", async (monitor, callback) => {
             try {
                 let removeGroupChildren = false;
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 let bean = await R.findOne("monitor", " id = ? ", [monitor.id]);
 
-                if (bean.user_id !== socket.userID) {
-                    throw new Error("Permission denied.");
+                // Soca: monitors are shared team-wide; the "components" permission
+                // (checked above) governs editing, not per-monitor ownership.
+                if (!bean) {
+                    throw new Error("Monitor not found.");
                 }
 
                 // Check if Parent is Descendant (would cause endless loop)
@@ -955,6 +1034,14 @@ let needSetup = false;
 
                 await server.sendUpdateMonitorIntoList(socket, bean.id);
 
+                await auditFromSocket(socket, {
+                    action: AuditAction.MONITOR_UPDATE,
+                    category: AuditCategory.COMPONENT,
+                    entityType: "monitor",
+                    entityId: bean.id,
+                    description: `Edited monitor "${bean.name}" (type=${bean.type})`,
+                });
+
                 callback({
                     ok: true,
                     msg: "Saved.",
@@ -992,7 +1079,8 @@ let needSetup = false;
 
                 log.info("monitor", `Get Monitor: ${monitorID} User ID: ${socket.userID}`);
 
-                let monitor = await R.findOne("monitor", " id = ? AND user_id = ? ", [monitorID, socket.userID]);
+                // Soca: monitors are shared team-wide — no per-user scoping.
+                let monitor = await R.findOne("monitor", " id = ? ", [monitorID]);
                 const monitorData = [{ id: monitor.id, active: monitor.active }];
                 const preloadData = await Monitor.preparePreloadData(monitorData);
                 callback({
@@ -1066,9 +1154,17 @@ let needSetup = false;
         // Start or Resume the monitor
         socket.on("resumeMonitor", async (monitorID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
                 await startMonitor(socket.userID, monitorID);
                 await server.sendUpdateMonitorIntoList(socket, monitorID);
+
+                await auditFromSocket(socket, {
+                    action: AuditAction.MONITOR_RESUME,
+                    category: AuditCategory.COMPONENT,
+                    entityType: "monitor",
+                    entityId: monitorID,
+                    description: `Resumed monitor #${monitorID}`,
+                });
 
                 callback({
                     ok: true,
@@ -1085,9 +1181,17 @@ let needSetup = false;
 
         socket.on("pauseMonitor", async (monitorID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
                 await pauseMonitor(socket.userID, monitorID);
                 await server.sendUpdateMonitorIntoList(socket, monitorID);
+
+                await auditFromSocket(socket, {
+                    action: AuditAction.MONITOR_PAUSE,
+                    category: AuditCategory.COMPONENT,
+                    entityType: "monitor",
+                    entityId: monitorID,
+                    description: `Paused monitor #${monitorID}`,
+                });
 
                 callback({
                     ok: true,
@@ -1110,12 +1214,13 @@ let needSetup = false;
                     deleteChildren = false;
                 }
 
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 const startTime = Date.now();
 
                 // Check if this is a group monitor
-                const monitor = await R.findOne("monitor", " id = ? AND user_id = ? ", [monitorID, socket.userID]);
+                // Soca: monitors are shared team-wide — no per-user scoping.
+                const monitor = await R.findOne("monitor", " id = ? ", [monitorID]);
 
                 // Log with context about deletion type
                 if (monitor && monitor.type === "group") {
@@ -1178,6 +1283,16 @@ let needSetup = false;
                     log.info("DB", `Delete Monitor completed in: ${endTime - startTime} ms`);
                 }
 
+                await auditFromSocket(socket, {
+                    action: AuditAction.MONITOR_DELETE,
+                    category: AuditCategory.COMPONENT,
+                    entityType: "monitor",
+                    entityId: monitorID,
+                    description: monitor
+                        ? `Deleted monitor "${monitor.name}"${monitor.type === "group" ? (deleteChildren ? " and its children" : " (children unlinked)") : ""}`
+                        : `Deleted monitor #${monitorID}`,
+                });
+
                 callback({
                     ok: true,
                     msg: "successDeleted",
@@ -1212,7 +1327,7 @@ let needSetup = false;
 
         socket.on("addTag", async (tag, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 let bean = R.dispense("tag");
                 bean.name = tag.name;
@@ -1233,7 +1348,7 @@ let needSetup = false;
 
         socket.on("editTag", async (tag, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 let bean = await R.findOne("tag", " id = ? ", [tag.id]);
                 if (bean == null) {
@@ -1264,7 +1379,7 @@ let needSetup = false;
 
         socket.on("deleteTag", async (tagID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 await R.exec("DELETE FROM tag WHERE id = ? ", [tagID]);
 
@@ -1283,7 +1398,7 @@ let needSetup = false;
 
         socket.on("addMonitorTag", async (tagID, monitorID, value, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 await R.exec("INSERT INTO monitor_tag (tag_id, monitor_id, value) VALUES (?, ?, ?)", [
                     tagID,
@@ -1308,7 +1423,7 @@ let needSetup = false;
 
         socket.on("editMonitorTag", async (tagID, monitorID, value, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 await R.exec("UPDATE monitor_tag SET value = ? WHERE tag_id = ? AND monitor_id = ?", [
                     value,
@@ -1333,7 +1448,7 @@ let needSetup = false;
 
         socket.on("deleteMonitorTag", async (tagID, monitorID, value, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 await R.exec("DELETE FROM monitor_tag WHERE tag_id = ? AND monitor_id = ? AND value = ?", [
                     tagID,
@@ -1438,6 +1553,12 @@ let needSetup = false;
 
                 server.disconnectAllSocketClients(user.id, socket.id);
 
+                await auditFromSocket(socket, {
+                    action: AuditAction.PASSWORD_CHANGE,
+                    category: AuditCategory.AUTH,
+                    description: `User "${socket.username}" changed their own password`,
+                });
+
                 callback({
                     ok: true,
                     token: User.createJWT(user, server.jwtSecret),
@@ -1476,7 +1597,7 @@ let needSetup = false;
 
         socket.on("setSettings", async (data, currentPassword, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "settings");
 
                 // If currently is disabled auth, don't need to check
                 // Disabled Auth + Want to Disable Auth => No Check
@@ -1520,6 +1641,14 @@ let needSetup = false;
                     }
                 }
 
+                await auditFromSocket(socket, {
+                    action: AuditAction.SETTING_UPDATE,
+                    category: AuditCategory.SETTING,
+                    entityType: "settings",
+                    entityId: "general",
+                    description: "Updated general settings",
+                });
+
                 callback({
                     ok: true,
                     msg: "Saved.",
@@ -1539,7 +1668,7 @@ let needSetup = false;
         // Add or Edit
         socket.on("addNotification", async (notification, notificationID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "settings");
 
                 let notificationBean = await Notification.save(notification, notificationID, socket.userID);
                 await sendNotificationList(socket);
@@ -1560,7 +1689,7 @@ let needSetup = false;
 
         socket.on("deleteNotification", async (notificationID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "settings");
 
                 await Notification.delete(notificationID, socket.userID);
                 await sendNotificationList(socket);
@@ -1580,7 +1709,7 @@ let needSetup = false;
 
         socket.on("testNotification", async (notification, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "settings");
 
                 let msg = await Notification.send(notification, notification.name + " Testing");
 
@@ -1635,7 +1764,7 @@ let needSetup = false;
 
         socket.on("clearEvents", async (monitorID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 log.info("manage", `Clear Events Monitor: ${monitorID} User ID: ${socket.userID}`);
 
@@ -1654,7 +1783,7 @@ let needSetup = false;
 
         socket.on("clearHeartbeats", async (monitorID, callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "components");
 
                 log.info("manage", `Clear Heartbeats Monitor: ${monitorID} User ID: ${socket.userID}`);
 
@@ -1682,7 +1811,7 @@ let needSetup = false;
 
         socket.on("clearStatistics", async (callback) => {
             try {
-                checkLogin(socket);
+                checkPermission(socket, "settings");
 
                 log.info("manage", `Clear Statistics User ID: ${socket.userID}`);
 
@@ -1718,6 +1847,11 @@ let needSetup = false;
         remoteBrowserSocketHandler(socket);
         generalSocketHandler(socket, server);
         chartSocketHandler(socket);
+        // Soca: user/role management (gated to site_admin inside the handler)
+        userSocketHandler(socket);
+        roleSocketHandler(socket);
+        // Soca: read-only audit trail (gated to the "users" permission inside the handler)
+        auditLogSocketHandler(socket);
 
         log.debug("server", "added all socket handlers");
 
@@ -1789,10 +1923,12 @@ async function updateMonitorNotification(monitorID, notificationIDList) {
  * @throws {Error} The specified user does not own the monitor
  */
 async function checkOwner(userID, monitorID) {
-    let row = await R.getRow("SELECT id FROM monitor WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+    // Soca: monitors are shared team-wide; access is governed by role permissions
+    // at the socket layer, so here we only verify the monitor exists.
+    let row = await R.getRow("SELECT id FROM monitor WHERE id = ? ", [monitorID]);
 
     if (!row) {
-        throw new Error("You do not own this monitor.");
+        throw new Error("Monitor not found.");
     }
 }
 
@@ -1805,7 +1941,20 @@ async function checkOwner(userID, monitorID) {
  */
 async function afterLogin(socket, user) {
     socket.userID = user.id;
+    // Soca: remember the user's role on the socket for permission checks.
+    socket.userRole = user.role;
+    // Soca: remember the username so audit-log entries can attribute the actor.
+    socket.username = user.username;
     socket.join(user.id);
+    // Soca: shared room so this user receives the whole team's live updates.
+    socket.join(SHARED_DASHBOARD_ROOM);
+
+    // Soca: tell the frontend who is logged in and what they may do (UI gating only).
+    socket.emit("currentUser", {
+        username: user.username,
+        role: user.role,
+        permissions: getPermissions(user.role),
+    });
 
     let monitorList = await server.sendMonitorList(socket);
     await Promise.allSettled([
@@ -1851,6 +2000,9 @@ async function initDatabase(testMode = false) {
     // Patch the database
     await Database.patch(port, hostname);
 
+    // Soca: load RBAC roles into memory so permission checks are synchronous.
+    await reloadRoles();
+
     let jwtSecretBean = await R.findOne("setting", " `key` = ? ", ["jwtSecret"]);
 
     if (!jwtSecretBean) {
@@ -1881,7 +2033,7 @@ async function startMonitor(userID, monitorID) {
 
     log.info("manage", `Resume Monitor: ${monitorID} User ID: ${userID}`);
 
-    await R.exec("UPDATE monitor SET active = 1 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+    await R.exec("UPDATE monitor SET active = 1 WHERE id = ? ", [monitorID]);
 
     let monitor = await R.findOne("monitor", " id = ? ", [monitorID]);
 
@@ -1914,7 +2066,7 @@ async function pauseMonitor(userID, monitorID) {
 
     log.info("manage", `Pause Monitor: ${monitorID} User ID: ${userID}`);
 
-    await R.exec("UPDATE monitor SET active = 0 WHERE id = ? AND user_id = ? ", [monitorID, userID]);
+    await R.exec("UPDATE monitor SET active = 0 WHERE id = ? ", [monitorID]);
 
     if (monitorID in server.monitorList) {
         await server.monitorList[monitorID].stop();

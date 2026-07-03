@@ -13,6 +13,8 @@ const dayjs = require("dayjs");
 const { UP, MAINTENANCE, DOWN, PENDING, flipStatus, log, badgeConstants } = require("../../src/util");
 const StatusPage = require("../model/status_page");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
+// Soca: shared dashboard room for multi-user live broadcasts.
+const { SHARED_DASHBOARD_ROOM } = require("../shared-room");
 const { makeBadge } = require("badge-maker");
 const { Prometheus } = require("../prometheus");
 const Database = require("../database");
@@ -124,9 +126,10 @@ router.all("/api/push/:pushToken", async (request, response) => {
 
         await R.store(bean);
 
-        io.to(monitor.user_id).emit("heartbeat", bean.toJSON());
+        // Soca: broadcast live heartbeats to the whole team, not just the owner.
+        io.to(SHARED_DASHBOARD_ROOM).emit("heartbeat", bean.toJSON());
 
-        Monitor.sendStats(io, monitor.id, monitor.user_id);
+        Monitor.sendStats(io, monitor.id, SHARED_DASHBOARD_ROOM);
 
         try {
             new Prometheus(monitor, await monitor.getTags()).update(bean, undefined);

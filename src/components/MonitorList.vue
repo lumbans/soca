@@ -19,8 +19,9 @@
                 </div>
 
                 <div class="filters-group">
+                    <!-- Soca: bulk pause/resume/delete are component management — hide for users without it. -->
                     <input
-                        v-if="!selectMode"
+                        v-if="$root.can('components') && !selectMode"
                         v-model="selectMode"
                         class="form-check-input"
                         type="checkbox"
@@ -28,7 +29,7 @@
                         @change="selectAll = selectMode"
                     />
                     <input
-                        v-else
+                        v-else-if="$root.can('components')"
                         v-model="selectAll"
                         class="form-check-input"
                         type="checkbox"

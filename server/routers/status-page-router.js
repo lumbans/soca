@@ -272,6 +272,31 @@ router.get("/api/status-page/:slug/incident-history", cache("5 minutes"), async 
     }
 });
 
+// Soca: full maintenance history (upcoming + uncapped past) for the dedicated tab
+router.get("/api/status-page/:slug/maintenance-history", cache("5 minutes"), async (request, response) => {
+    allowDevAllOrigin(response);
+
+    try {
+        let slug = request.params.slug;
+        slug = slug.toLowerCase();
+        let statusPageID = await StatusPage.slugToID(slug);
+
+        if (!statusPageID) {
+            sendHttpError(response, "Status Page Not Found");
+            return;
+        }
+
+        // Large past limit so the history page shows every completed maintenance.
+        const result = await StatusPage.getMaintenanceList(statusPageID, 1000);
+        response.json({
+            ok: true,
+            ...result,
+        });
+    } catch (error) {
+        sendHttpError(response, error.message);
+    }
+});
+
 // overall status-page status badge
 router.get("/api/status-page/:slug/badge", cache("5 minutes"), async (request, response) => {
     allowDevAllOrigin(response);

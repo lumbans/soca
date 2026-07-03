@@ -33,7 +33,7 @@
             </a>
 
             <ul class="nav nav-pills">
-                <li v-if="$root.loggedIn" class="nav-item me-2">
+                <li v-if="$root.loggedIn && ($root.can('components') || $root.can('incidents'))" class="nav-item me-2">
                     <router-link to="/manage-status-page" class="nav-link">
                         <font-awesome-icon icon="stream" />
                         {{ $t("Status Pages") }}
@@ -72,7 +72,7 @@
                             <li><hr class="dropdown-divider" /></li>
 
                             <!-- Functions -->
-                            <li>
+                            <li v-if="$root.can('components')">
                                 <router-link
                                     to="/maintenance"
                                     class="dropdown-item"
@@ -85,7 +85,7 @@
 
                             <li>
                                 <router-link
-                                    to="/settings/general"
+                                    to="/settings"
                                     class="dropdown-item"
                                     :class="{ active: $route.path.includes('settings') }"
                                 >
@@ -143,7 +143,7 @@
                 {{ $t("List") }}
             </router-link>
 
-            <router-link to="/add" class="nav-link">
+            <router-link v-if="$root.can('components')" to="/add" class="nav-link">
                 <div><font-awesome-icon icon="plus" /></div>
                 {{ $t("Add") }}
             </router-link>
