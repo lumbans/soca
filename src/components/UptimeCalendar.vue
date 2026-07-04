@@ -202,6 +202,7 @@ export default {
         flex-wrap: wrap;
         gap: 20px;
     }
+
     .cal-mlabel {
         font-size: 11px;
         font-weight: 600;
@@ -209,24 +210,26 @@ export default {
         text-align: center;
         margin-bottom: 5px;
     }
+
     .cal-grid {
         display: grid;
         grid-template-columns: repeat(7, 16px);
         gap: 3px;
     }
     .cal-wd { font-size: 9px; opacity: 0.5; text-align: center; }
+
     .cal-cell {
         width: 16px;
         height: 16px;
         border-radius: 3px;
     }
     .cal-empty, .cal-future { background: transparent; }
-    .cal-none { background: rgba(128, 128, 128, 0.2); }
+    .cal-none { background: rgb(128, 128, 128, 0.2); }
     .cal-up { background: #4caf50; }
     .cal-warn { background: #f0a02f; }
     .cal-partial { background: #e8702a; }
     .cal-down { background: #dc3545; }
-    .cal-cell[title]:hover { outline: 2px solid rgba(128, 128, 128, 0.5); cursor: default; }
+    .cal-cell[title]:hover { outline: 2px solid rgb(128, 128, 128, 0.5); cursor: default; }
     .cal-cell.editable { cursor: pointer; }
     // Note marker: small blue underline strip inside the cell
     .cal-cell.has-note { box-shadow: inset 0 -4px 0 0 #2f7ce0; }
@@ -236,12 +239,12 @@ export default {
     position: fixed; z-index: 1080; pointer-events: none;
     background: #1a1a18; color: #f5f5f3;
     font-size: 11px; line-height: 1.45; padding: 8px 11px; border-radius: 7px;
-    max-width: 280px; white-space: normal; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    max-width: 280px; white-space: normal; box-shadow: 0 6px 20px rgb(0, 0, 0, 0.3);
 
     .ct-date { font-weight: 600; font-size: 12px; }
     .ct-status { margin-top: 3px; display: flex; align-items: flex-start; gap: 6px; opacity: 0.92; }
     .ct-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; margin-top: 4px; }
     .ct-resp { margin-top: 3px; opacity: 0.75; }
-    .ct-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.18); font-weight: 500; }
+    .ct-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgb(255, 255, 255, 0.18); font-weight: 500; }
 }
 </style>

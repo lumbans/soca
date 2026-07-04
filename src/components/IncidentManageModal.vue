@@ -386,6 +386,7 @@ export default {
     flex-wrap: wrap;
     gap: 0.4rem 1rem;
 }
+
 .bm-affected-item {
     display: inline-flex;
     align-items: center;

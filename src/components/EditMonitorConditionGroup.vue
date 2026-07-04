@@ -164,12 +164,12 @@ export default {
 @import "../assets/vars.scss";
 
 .condition-group-inner {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgb(0, 0, 0, 0.05);
     padding: 20px;
 }
 
 .dark .condition-group-inner {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255, 255, 255, 0.05);
 }
 
 .condition-group-conditions {

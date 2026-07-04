@@ -676,12 +676,12 @@ export default {
         min-width: 140px;
         padding: 4px 0;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 2px 8px rgb(0, 0, 0, 0.15);
 
         .dark & {
             background-color: $dark-bg;
             border-color: $dark-border-color;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 8px rgb(0, 0, 0, 0.3);
         }
     }
 
@@ -758,7 +758,7 @@ export default {
     }
 }
 
-@media (max-width: 975px) {
+@media (width <= 975px) {
     .filter-row {
         flex-direction: column-reverse;
         align-items: stretch;
@@ -777,7 +777,7 @@ export default {
     }
 }
 
-@media (max-width: 770px) {
+@media (width <= 770px) {
     .list-header {
         margin-bottom: 10px;
         padding: 20px;
@@ -826,7 +826,7 @@ export default {
     gap: 0;
 }
 
-@media (max-width: 549px), (min-width: 770px) and (max-width: 1149px), (min-width: 1200px) and (max-width: 1499px) {
+@media (width <= 549px), (width >= 770px) and (width <= 1149px), (width >= 1200px) and (width <= 1499px) {
     .selection-controls {
         .selected-count {
             margin-left: 0;

@@ -370,7 +370,8 @@ let needSetup = false;
     app.use(statusPageRouter);
 
     // Universal Route Handler, must be at the end of all express routes.
-    app.get("*", async (_request, response) => {
+    // Express 5 / path-to-regexp 8 no longer accepts the bare "*" pattern; use a catch-all RegExp.
+    app.get(/.*/, async (_request, response) => {
         if (_request.originalUrl.startsWith("/upload/")) {
             response.status(404).send("File not found.");
         } else {

@@ -167,7 +167,7 @@
 
 <script>
 import Login from "../components/Login.vue";
-import compareVersions from "compare-versions";
+import { compareVersions } from "compare-versions";
 import { useToast } from "vue-toastification";
 const toast = useToast();
 
@@ -256,7 +256,7 @@ export default {
     }
 
     &.status-page {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgb(255, 255, 255, 0.1);
     }
 }
 
@@ -269,8 +269,8 @@ export default {
     left: 0;
     background-color: #fff;
     box-shadow:
-        0 15px 47px 0 rgba(0, 0, 0, 0.05),
-        0 5px 14px 0 rgba(0, 0, 0, 0.05);
+        0 15px 47px 0 rgb(0, 0, 0, 0.05),
+        0 5px 14px 0 rgb(0, 0, 0, 0.05);
     text-align: center;
     white-space: nowrap;
     padding: 0 10px env(safe-area-inset-bottom);
@@ -328,11 +328,11 @@ main {
         display: flex;
         gap: 6px;
         align-items: center;
-        background-color: rgba(200, 200, 200, 0.2);
+        background-color: rgb(200, 200, 200, 0.2);
         padding: 0.5rem 0.8rem;
 
         &:hover {
-            background-color: rgba(255, 255, 255, 0.2);
+            background-color: rgb(255, 255, 255, 0.2);
         }
     }
 
@@ -346,7 +346,7 @@ main {
 
         .dropdown-divider {
             margin: 0;
-            border-top: 1px solid rgba(0, 0, 0, 0.4);
+            border-top: 1px solid rgb(0, 0, 0, 0.4);
             background-color: transparent;
         }
 
@@ -416,15 +416,15 @@ main {
     font-size: 1.2em;
     padding: 9px 15px;
     width: 48px;
-    box-shadow: 2px 2px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 2px 2px 30px rgb(0, 0, 0, 0.2);
     z-index: 100;
 
     .dark & {
-        box-shadow: 2px 2px 30px rgba(0, 0, 0, 0.5);
+        box-shadow: 2px 2px 30px rgb(0, 0, 0, 0.5);
     }
 }
 
-@media (max-width: 770px) {
+@media (width <= 770px) {
     .clear-all-toast-btn {
         bottom: 72px;
     }

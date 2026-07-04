@@ -246,14 +246,14 @@ export default {
     margin-top: 5px;
     display: block;
     font-size: 14px;
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgb(255, 255, 255, 0.5);
     border-radius: 20px;
     padding: 0 10px;
     width: fit-content;
 
     .dark & {
         color: white;
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgb(255, 255, 255, 0.1);
     }
 }
 

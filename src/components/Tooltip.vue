@@ -121,12 +121,12 @@ export default {
     transform: translateX(-50%);
 
     .tooltip-content {
-        background: rgba(17, 24, 39, 0.95);
+        background: rgb(17, 24, 39, 0.95);
         backdrop-filter: blur(8px);
-        border: 1px solid rgba(75, 85, 99, 0.3);
+        border: 1px solid rgb(75, 85, 99, 0.3);
         border-radius: 8px;
         padding: 8px 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 10px 25px rgb(0, 0, 0, 0.25);
         min-width: 120px;
         text-align: center;
         position: relative;
@@ -138,7 +138,7 @@ export default {
             transform: translateX(-50%);
             width: 14px;
             height: 2px;
-            background: rgba(17, 24, 39, 0.95);
+            background: rgb(17, 24, 39, 0.95);
             top: -1px;
         }
 
@@ -181,7 +181,7 @@ export default {
             font-size: 12px;
             margin-top: 4px;
             padding-top: 4px;
-            border-top: 1px solid rgba(75, 85, 99, 0.3);
+            border-top: 1px solid rgb(75, 85, 99, 0.3);
         }
     }
 
@@ -202,8 +202,8 @@ export default {
             transform: translateX(-50%) translateY(-50%) rotate(45deg);
             width: 8px;
             height: 8px;
-            background: rgba(17, 24, 39, 0.95);
-            border: 1px solid rgba(75, 85, 99, 0.3);
+            background: rgb(17, 24, 39, 0.95);
+            border: 1px solid rgb(75, 85, 99, 0.3);
             border-bottom: none;
             border-right: none;
         }
@@ -215,7 +215,7 @@ export default {
             &::before {
                 top: 0%;
                 transform: translateX(-50%) translateY(-50%) rotate(225deg);
-                border: 1px solid rgba(75, 85, 99, 0.3);
+                border: 1px solid rgb(75, 85, 99, 0.3);
                 border-bottom: none;
                 border-right: none;
             }
@@ -238,18 +238,18 @@ export default {
 // Dark theme adjustments
 .dark .tooltip-wrapper {
     .tooltip-content {
-        background: rgba(31, 41, 55, 0.95);
-        border-color: rgba(107, 114, 128, 0.3);
+        background: rgb(31, 41, 55, 0.95);
+        border-color: rgb(107, 114, 128, 0.3);
 
         &::before {
-            background: rgba(31, 41, 55, 0.95);
+            background: rgb(31, 41, 55, 0.95);
         }
     }
 
     .tooltip-arrow {
         &::before {
-            background: rgba(31, 41, 55, 0.95);
-            border-color: rgba(107, 114, 128, 0.3);
+            background: rgb(31, 41, 55, 0.95);
+            border-color: rgb(107, 114, 128, 0.3);
         }
     }
 }

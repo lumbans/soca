@@ -60,7 +60,7 @@ export default {
     inset: 0 auto auto 0;
     margin: 0;
     transform: translate(0, 36px);
-    box-shadow: 0 15px 70px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 15px 70px rgb(0, 0, 0, 0.1);
     visibility: hidden;
     list-style: none;
     height: 0;
