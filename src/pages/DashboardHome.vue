@@ -326,19 +326,19 @@ table {
         transition: all ease-in-out 0.2ms;
     }
 
-    @media (max-width: 550px) {
+    @media (width <= 550px) {
         table-layout: fixed;
         overflow-wrap: break-word;
     }
 }
 
-@media screen and (max-width: 1280px) {
+@media screen and (width <= 1280px) {
     .name-column {
         min-width: 150px;
     }
 }
 
-@media screen and (min-aspect-ratio: 4/3) {
+@media screen and (aspect-ratio >= 4/3) {
     .name-column {
         min-width: 200px;
     }

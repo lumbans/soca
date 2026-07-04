@@ -171,9 +171,11 @@ export default {
     padding-top: 20px;
     padding-bottom: 20px;
 }
+
 .form-panel {
     padding: 20px;
 }
+
 .item {
     display: flex;
     align-items: center;
@@ -193,11 +195,13 @@ export default {
             font-weight: bold;
             font-size: 18px;
         }
+
         .desc {
             font-size: 14px;
         }
     }
 }
+
 .dark {
     .item:hover {
         background-color: $dark-bg2;

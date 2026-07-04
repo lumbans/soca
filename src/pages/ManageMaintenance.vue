@@ -248,10 +248,10 @@ export default {
     }
 
     &.under-maintenance {
-        background-color: rgba(23, 71, 245, 0.16);
+        background-color: rgb(23, 71, 245, 0.16);
 
         &:hover {
-            background-color: rgba(23, 71, 245, 0.3) !important;
+            background-color: rgb(23, 71, 245, 0.3) !important;
         }
 
         .circle {
@@ -315,7 +315,7 @@ export default {
         gap: 8px;
         flex-direction: row-reverse;
 
-        @media (max-width: 550px) {
+        @media (width <= 550px) {
             & {
                 width: 100%;
             }

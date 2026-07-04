@@ -210,16 +210,18 @@ export default {
                 gap: 0.4rem;
                 font-size: 13px;
             }
+
             .bm-affected-label {
                 opacity: 0.7;
             }
+
             .bm-affected-chip {
                 display: inline-block;
                 padding: 1px 9px;
                 border-radius: 999px;
                 font-size: 12px;
-                background: rgba(128, 128, 128, 0.15);
-                border: 1px solid rgba(128, 128, 128, 0.25);
+                background: rgb(128, 128, 128, 0.15);
+                border: 1px solid rgb(128, 128, 128, 0.25);
             }
 
             // Soca: lifecycle timeline
@@ -227,7 +229,7 @@ export default {
                 .timeline-item {
                     padding: 2px 0;
                     padding-left: 0.6rem;
-                    border-left: 2px solid rgba(128, 128, 128, 0.35);
+                    border-left: 2px solid rgb(128, 128, 128, 0.35);
                     margin-bottom: 2px;
                     font-size: 13px;
                 }

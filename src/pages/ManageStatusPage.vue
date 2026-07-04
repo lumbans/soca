@@ -180,7 +180,7 @@ export default {
     }
 }
 
-@media (max-width: 770px) {
+@media (width <= 770px) {
     .item {
         .actions {
             visibility: visible;

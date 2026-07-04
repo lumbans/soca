@@ -1901,7 +1901,7 @@ export default {
          */
         editDailyNote(monitorId, bar) {
             this.hideBarTip();
-            // eslint-disable-next-line no-alert
+             
             const note = window.prompt(`Catatan untuk ${bar.date} (kosongkan untuk hapus):`, bar.note || "");
             if (note === null) {
                 return; // cancelled
@@ -2220,7 +2220,7 @@ footer {
         padding: 5px;
         border-radius: 10px;
         cursor: pointer;
-        box-shadow: 0 15px 70px rgba(0, 0, 0, 0.9);
+        box-shadow: 0 15px 70px rgb(0, 0, 0, 0.9);
     }
 
     /* Reset button placed at top-left of the logo */
@@ -2239,14 +2239,14 @@ footer {
         border-radius: 50%;
         background: white;
         border: none;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 1px 4px rgb(0, 0, 0, 0.2);
         cursor: pointer;
         transform-origin: center;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.06);
+            background-color: rgb(0, 0, 0, 0.06);
             transform: scale(1.18);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+            box-shadow: 0 6px 18px rgb(0, 0, 0, 0.18);
         }
 
         &:hover ~ .icon-upload {
@@ -2272,9 +2272,9 @@ footer {
         cursor: pointer;
 
         &:hover {
-            background-color: rgba(0, 0, 0, 0.04);
+            background-color: rgb(0, 0, 0, 0.04);
             transform: scale(1.18);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 6px 18px rgb(0, 0, 0, 0.12);
         }
     }
 }
@@ -2345,8 +2345,8 @@ footer {
     padding: 1px 9px;
     border-radius: 999px;
     font-size: 12px;
-    background: rgba(128, 128, 128, 0.15);
-    border: 1px solid rgba(128, 128, 128, 0.25);
+    background: rgb(128, 128, 128, 0.15);
+    border: 1px solid rgb(128, 128, 128, 0.25);
 }
 
 .dark .incident-card {
@@ -2369,12 +2369,12 @@ footer {
     // Soca: lifecycle timeline — colors inherit the incident text color (with
     // opacity) so they stay readable on any incident style background.
     .incident-timeline {
-        border-top: 1px solid rgba(128, 128, 128, 0.35);
+        border-top: 1px solid rgb(128, 128, 128, 0.35);
         padding-top: 0.5rem;
 
         .timeline-item {
             padding: 0.4rem 0;
-            border-left: 2px solid rgba(128, 128, 128, 0.4);
+            border-left: 2px solid rgb(128, 128, 128, 0.4);
             padding-left: 0.75rem;
             margin-bottom: 0.25rem;
         }
@@ -2487,7 +2487,7 @@ footer {
     }
     // Soca: a day with an admin note gets a small marker
     .bm-seg.bm-has-note {
-        box-shadow: inset 0 0 0 2px rgba(24, 95, 165, 0.85);
+        box-shadow: inset 0 0 0 2px rgb(24, 95, 165, 0.85);
     }
 
     .bm-seg.bm-editable {
@@ -2560,7 +2560,7 @@ footer {
     border-radius: 7px;
     max-width: 280px;
     white-space: normal;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 20px rgb(0, 0, 0, 0.15);
 
     .bt-date {
         font-weight: 600;
@@ -2589,7 +2589,7 @@ footer {
     .bt-note {
         margin-top: 6px;
         padding-top: 6px;
-        border-top: 1px solid rgba(0, 0, 0, 0.12);
+        border-top: 1px solid rgb(0, 0, 0, 0.12);
         font-weight: 500;
     }
 
@@ -2660,7 +2660,7 @@ footer {
     top: 1rem;
 }
 
-@media (max-width: 991px) {
+@media (width <= 991px) {
     .bm-layout.bm-has-side {
         flex-direction: column;
     }
@@ -2700,7 +2700,7 @@ footer {
 
 // Active tab differs by background only (no underline / no text change)
 .bm-maint-tab.active {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgb(255, 255, 255, 0.16);
 }
 
 .bm-maint-tabbody {
@@ -2715,7 +2715,7 @@ footer {
 
 .bm-maint-box-foot {
     padding: 0.7rem 1.1rem 0.95rem;
-    border-top: 1px solid rgba(128, 128, 128, 0.12);
+    border-top: 1px solid rgb(128, 128, 128, 0.12);
 }
 
 .bm-maint-box-foot .bm-more-link {
@@ -2738,7 +2738,7 @@ footer {
     letter-spacing: 0.3px;
     opacity: 0.55;
     padding: 0.6rem 0.5rem;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    border-bottom: 1px solid rgb(128, 128, 128, 0.2);
 }
 
 .bm-maint-table th:first-child,
@@ -2759,7 +2759,7 @@ footer {
 .bm-maint-table td {
     padding: 0.7rem 0.5rem;
     vertical-align: top;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+    border-bottom: 1px solid rgb(128, 128, 128, 0.1);
     word-break: break-word;
 }
 
@@ -2818,7 +2818,7 @@ footer {
 .bm-mt-chip {
     display: inline-block;
     font-size: 11px;
-    background: rgba(24, 95, 165, 0.1);
+    background: rgb(24, 95, 165, 0.1);
     color: #185fa5;
     border-radius: 6px;
     padding: 1px 7px;
@@ -2830,7 +2830,7 @@ footer {
 }
 
 .dark .bm-mt-chip {
-    background: rgba(120, 170, 220, 0.16);
+    background: rgb(120, 170, 220, 0.16);
     color: #9ec3e8;
 }
 
@@ -2855,7 +2855,7 @@ footer {
     border-radius: 14px;
     padding: 1rem 1.15rem;
     background: linear-gradient(135deg, var(--maint-bg-1), var(--maint-bg-2));
-    box-shadow: 0 1px 2px rgba(15, 39, 64, 0.04);
+    box-shadow: 0 1px 2px rgb(15, 39, 64, 0.04);
 
     // Accent rail on the left edge
     &::before {
@@ -2877,7 +2877,7 @@ footer {
         background: var(--maint-accent);
         color: #fff;
         font-size: 16px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 2px 6px rgb(0, 0, 0, 0.12);
     }
 
     .bm-maint-body {
@@ -2921,7 +2921,7 @@ footer {
         height: 7px;
         border-radius: 50%;
         background: #fff;
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+        box-shadow: 0 0 0 0 rgb(255, 255, 255, 0.7);
         animation: bm-maint-pulse 1.6s infinite;
     }
 
@@ -2949,7 +2949,7 @@ footer {
     // Tighten the embedded MaintenanceTime pills to match the row
     .timeslot {
         margin-top: 0;
-        background: rgba(255, 255, 255, 0.7);
+        background: rgb(255, 255, 255, 0.7);
         border: 1px solid var(--maint-border);
         color: var(--maint-time);
     }
@@ -2957,15 +2957,15 @@ footer {
 
 @keyframes bm-maint-pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+        box-shadow: 0 0 0 0 rgb(255, 255, 255, 0.6);
     }
 
     70% {
-        box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+        box-shadow: 0 0 0 6px rgb(255, 255, 255, 0);
     }
 
     100% {
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+        box-shadow: 0 0 0 0 rgb(255, 255, 255, 0);
     }
 }
 
@@ -3005,11 +3005,11 @@ footer {
     box-shadow: none;
 
     .bm-maint-badge {
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 2px 6px rgb(0, 0, 0, 0.35);
     }
 
     .timeslot {
-        background: rgba(255, 255, 255, 0.06);
+        background: rgb(255, 255, 255, 0.06);
     }
 }
 
@@ -3169,7 +3169,7 @@ footer {
 .dark .bm-status-page .shadow-box,
 .dark .bm-status-page .bm-maint-box {
     background-color: #0d1117 !important;
-    border-color: rgba(255, 255, 255, 0.22) !important;
+    border-color: rgb(255, 255, 255, 0.22) !important;
 }
 
 /* Sharpen faint grey text for readability.

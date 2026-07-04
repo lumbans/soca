@@ -299,11 +299,12 @@ class SetupDatabase {
                 })
             );
 
-            app.get("*", async (_request, response) => {
+            // Express 5 / path-to-regexp 8 no longer accepts the bare "*" pattern; use a catch-all RegExp.
+            app.get(/.*/, async (_request, response) => {
                 response.send(this.server.indexHTML);
             });
 
-            app.options("*", async (_request, response) => {
+            app.options(/.*/, async (_request, response) => {
                 allowDevAllOrigin(response);
                 response.end();
             });

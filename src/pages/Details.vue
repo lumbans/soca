@@ -869,13 +869,13 @@ export default {
     margin-top: 16px;
 }
 
-@media (max-width: 767px) {
+@media (width <= 767px) {
     .badge {
         margin-top: 14px;
     }
 }
 
-@media (max-width: 550px) {
+@media (width <= 550px) {
     .ping-chart-wrapper {
         padding: 10px !important;
     }
@@ -885,7 +885,7 @@ export default {
     }
 }
 
-@media (max-width: 450px) {
+@media (width <= 450px) {
     .btn {
         padding-top: 10px;
         font-size: 0.9em;
@@ -906,7 +906,7 @@ export default {
     }
 }
 
-@media (max-width: 400px) {
+@media (width <= 400px) {
     .dropdown-clear-data {
         button {
             display: block;
@@ -956,7 +956,7 @@ table {
     }
 }
 
-@media (max-width: 550px) {
+@media (width <= 550px) {
     .stats {
         .col {
             margin: 10px 0 !important;

@@ -446,19 +446,19 @@ export default {
 .ins-brand { font-size: 19px; font-weight: 600; }
 .ins-back { font-size: 13px; text-decoration: none; color: #185fa5; }
 
-.ins-tabs { display: flex; border-bottom: 1px solid rgba(128, 128, 128, 0.25); margin-bottom: 1.75rem; }
+.ins-tabs { display: flex; border-bottom: 1px solid rgb(128, 128, 128, 0.25); margin-bottom: 1.75rem; }
 .ins-tab { font-size: 14px; font-weight: 500; padding: 0.6rem 0; margin-right: 1.5rem; cursor: pointer; opacity: 0.6; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.ins-tab.active { opacity: 1; border-bottom-color: currentColor; }
+.ins-tab.active { opacity: 1; border-bottom-color: currentcolor; }
 .ins-tab:hover { opacity: 1; }
 
 .ins-month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .ins-month-title { font-size: 18px; font-weight: 600; }
-.ins-mbtn { font-size: 13px; padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.35); background: none; color: inherit; cursor: pointer; }
+.ins-mbtn { font-size: 13px; padding: 5px 12px; border-radius: 8px; border: 1px solid rgb(128, 128, 128, 0.35); background: none; color: inherit; cursor: pointer; }
 .ins-mbtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .ins-empty { opacity: 0.6; font-size: 13px; padding: 1rem 0; }
 .ins-inc-day { margin-bottom: 1.75rem; }
-.ins-inc-date { font-size: 13px; font-weight: 600; opacity: 0.7; padding-bottom: 0.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(128, 128, 128, 0.2); }
+.ins-inc-date { font-size: 13px; font-weight: 600; opacity: 0.7; padding-bottom: 0.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgb(128, 128, 128, 0.2); }
 .ins-inc-card { margin-bottom: 1.25rem; }
 .ins-inc-titlerow { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ins-inc-title { font-size: 15px; font-weight: 600; }
@@ -480,10 +480,10 @@ export default {
 
 .ins-filter-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px; }
 .ins-section-label { font-size: 13px; opacity: 0.6; }
-.ins-select { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.35); background: none; color: inherit; max-width: 260px; }
+.ins-select { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid rgb(128, 128, 128, 0.35); background: none; color: inherit; max-width: 260px; }
 
 /* Soca: maintenance history cards */
-.ins-maint-card { margin-bottom: 1.25rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgba(128, 128, 128, 0.12); }
+.ins-maint-card { margin-bottom: 1.25rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgb(128, 128, 128, 0.12); }
 .ins-maint-card:last-child { border-bottom: none; }
 .ins-maint-desc { font-size: 13px; opacity: 0.8; margin: 0.35rem 0 0.5rem; line-height: 1.5; }
 .tag-maint-active { background: #e7f0fa; color: #185fa5; }
