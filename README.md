@@ -13,6 +13,14 @@ Atlassian-style status page and an incident-management workflow layered on top.
 > original Uptime Kuma project and its contributors. Soca only adds the status-page and
 > incident features described below.
 
+## 📸 Screenshot
+
+Public status page:
+
+<div align="center" width="100%">
+    <img src="./pictures/soca-status-page.png" width="800" alt="Soca status page" />
+</div>
+
 ---
 
 ## ✨ What Soca adds on top of Uptime Kuma

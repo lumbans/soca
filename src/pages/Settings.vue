@@ -93,6 +93,7 @@ export default {
                 users: { title: this.$t("Users"), permission: "users" },
                 roles: { title: this.$t("Roles"), permission: "users" },
                 "audit-log": { title: this.$t("Audit Log"), permission: "users" },
+                report: { title: this.$t("Regulatory Report"), permission: "incidents" },
                 notifications: { title: this.$t("Notifications"), permission: "settings" },
                 "reverse-proxy": { title: this.$t("Reverse Proxy"), permission: "settings" },
                 tags: { title: this.$t("Tags"), permission: "components" },

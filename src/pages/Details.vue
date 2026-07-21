@@ -444,7 +444,9 @@ const PingChart = defineAsyncComponent(() => import("../components/PingChart.vue
 import Tag from "../components/Tag.vue";
 import CertificateInfo from "../components/CertificateInfo.vue";
 import { getMonitorRelativeURL } from "../util.ts";
-import { URL } from "whatwg-url";
+// Use the browser-native URL. (Importing whatwg-url pulls webidl-conversions,
+// which references SharedArrayBuffer at module init and crashes the app in
+// browsers that are not cross-origin isolated.)
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { getResBaseURL, timeDurationFormatter } from "../util-frontend";

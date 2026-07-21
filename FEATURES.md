@@ -81,6 +81,19 @@ Code: `src/pages/StatusInsights.vue`, `src/components/UptimeCalendar.vue`, route
 ### A.10 Public status page reskin
 - Single unified per-monitor component (no duplicate "daily" + "90-day"); native monitor list shown only in edit mode (for management). Public view is read-only.
 
+### A.11 Regulatory report (laporan regulasi)
+- **Availability & incident report** per status page, for regulatory submission (e.g. system availability & gangguan reports to a financial regulator).
+- **Two period modes**: a calendar **month**, or a **custom date range** (inclusive start/end, up to ~1 year).
+- Output: **summary** (overall availability, total measured downtime, total outages, systems monitored, incident count), a **per-system table** (availability %, measured downtime, outages, checks, monitored days), and an **incident/disruption list** (impact, affected systems, start/end, duration, status).
+- **Export**: Download CSV (UTF-8 BOM for Excel) and Print / Save as PDF (browser print with print-isolation CSS — no external libraries).
+- **Availability** is aggregated from the same `UptimeCalculator` daily buckets as the 90-day bar. **Downtime & outage counts are measured accurately from actual DOWN events** — the server walks the monitor's important heartbeats (status transitions, never pruned by retention), summing the exact time spent in the DOWN state within the window and counting distinct outages, including a down period that spans the window start. Ongoing periods are flagged **provisional**.
+- **Access**: requires the `incidents` capability (route + menu gated; server enforces `checkPermission(socket, "incidents")`).
+
+Code:
+- Server: `server/socket-handlers/report-socket-handler.js` (`getRegulatoryReport`), registered in `server/server.js`
+- UI: `src/components/settings/RegulatoryReport.vue`; route `/settings/report` in `src/router.js`; menu entry in `src/pages/Settings.vue`
+- i18n: keys in `src/lang/en.json` (+ `id-ID.json`)
+
 ---
 
 ## B. Database additions (auto-migrated)
@@ -97,11 +110,17 @@ No manual SQL is required on deploy.
 
 ---
 
-## C. Access control
-- Every incident/note operation requires an authenticated admin session — `checkLogin(socket)` in `server/util-server.js`.
-  Handlers: `postIncident`, `editIncident`, `addIncidentUpdate`, `resolveIncident`, `deleteIncident`, `unpinIncident`, `setMonitorDailyNote`.
-- Uptime Kuma is **single-admin** (no roles/permissions); whoever holds the admin credentials can manage everything. 2FA available in Settings.
-- Public visitors are **read-only** (view incidents, timeline, history, affected systems, uptime bars).
+## C. Access control (RBAC — multi-user)
+- **Role-based access control** replaces upstream's single-admin model. Roles live in the `role` table and are cached in memory (`server/permissions.js`); the first setup user is `site_admin`.
+- **Capabilities**: `users` (manage accounts & roles), `settings` (global/infra settings, notifications, proxies), `components` (monitors, status pages, maintenance, daily notes), `incidents` (incident lifecycle). `view` (read-only dashboard) is implicit for every logged-in user.
+- **Built-in roles**: `site_admin`, `page_admin`, `incident_mgr`, `component_mgr`, `viewer`.
+- The server enforces every mutating action with `checkPermission(socket, <capability>)` in `server/util-server.js`; read-only handlers use `checkLogin(socket)`. The frontend receives the computed permission booleans for UI gating only (`afterLogin` → `currentUser`).
+  - Incident handlers require `incidents`: `postIncident`, `editIncident`, `addIncidentUpdate`, `resolveIncident`, `deleteIncident`, `unpinIncident`.
+  - `setMonitorDailyNote`, status-page and maintenance mutations require `components`; notifications/proxies/global settings require `settings`; user/role management requires `users`.
+- **Anti-lockout**: the last active user holding the `users` capability cannot be demoted, deactivated, or deleted (`server/socket-handlers/user-socket-handler.js`). User/role changes are recorded in the audit log.
+- 2FA available in Settings. Public visitors are **read-only** (view incidents, timeline, history, affected systems, uptime bars).
+
+Code: `server/permissions.js`, `server/socket-handlers/user-socket-handler.js`, `server/socket-handlers/role-socket-handler.js`, `checkPermission` in `server/util-server.js`.
 
 ---
 

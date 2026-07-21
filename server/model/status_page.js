@@ -521,10 +521,9 @@ class StatusPage extends BeanModel {
      * Get paginated incident history for a status page using cursor-based pagination
      * @param {number} statusPageId ID of the status page
      * @param {string|null} cursor ISO date string cursor (created_date of last item from previous page)
-     * @param {boolean} isPublic Whether to return public or admin data
      * @returns {Promise<object>} Paginated incident data with cursor
      */
-    static async getIncidentHistory(statusPageId, cursor = null, isPublic = true) {
+    static async getIncidentHistory(statusPageId, cursor = null) {
         let incidents;
 
         if (cursor) {

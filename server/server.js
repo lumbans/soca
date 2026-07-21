@@ -195,6 +195,7 @@ const { generalSocketHandler } = require("./socket-handlers/general-socket-handl
 const { userSocketHandler } = require("./socket-handlers/user-socket-handler");
 const { roleSocketHandler } = require("./socket-handlers/role-socket-handler");
 const { auditLogSocketHandler } = require("./socket-handlers/audit-log-socket-handler");
+const { reportSocketHandler } = require("./socket-handlers/report-socket-handler");
 const { audit, auditFromSocket, AuditAction, AuditCategory, AuditStatus } = require("./audit-log");
 const { Settings } = require("./settings");
 const apicache = require("./modules/apicache");
@@ -1853,6 +1854,8 @@ let needSetup = false;
         roleSocketHandler(socket);
         // Soca: read-only audit trail (gated to the "users" permission inside the handler)
         auditLogSocketHandler(socket);
+        // Soca: regulatory availability report (gated to the "incidents" permission inside the handler)
+        reportSocketHandler(socket);
 
         log.debug("server", "added all socket handlers");
 

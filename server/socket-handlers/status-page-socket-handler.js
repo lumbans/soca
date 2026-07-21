@@ -8,6 +8,8 @@ const apicache = require("../modules/apicache");
 const StatusPage = require("../model/status_page");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
 const { Settings } = require("../settings");
+// Soca: invalidate the regulatory-report cache when incidents / pages change.
+const { clearReportCache } = require("./report-socket-handler");
 
 // Soca: valid lifecycle statuses and impact levels
 const VALID_INCIDENT_STATUS = ["investigating", "identified", "monitoring", "update", "resolved"];
@@ -48,19 +50,34 @@ function normalizeImpact(impact) {
 
 /**
  * Soca: replace the set of monitors (systems) affected by an incident.
+ * Only monitors that are actually published on the incident's status page are
+ * accepted, so an incident can never reference a monitor from another page.
  * @param {number} incidentID Incident id
+ * @param {number} statusPageID Status page the incident belongs to
  * @param {Array<number|string>} monitorIDs Affected monitor ids
  * @returns {Promise<void>}
  */
-async function setIncidentMonitors(incidentID, monitorIDs) {
+async function setIncidentMonitors(incidentID, statusPageID, monitorIDs) {
     await R.exec("DELETE FROM incident_monitor WHERE incident_id = ?", [incidentID]);
     if (!Array.isArray(monitorIDs)) {
         return;
     }
+
+    // Set of monitor ids that are actually published on this status page.
+    const allowedRows = await R.getCol(
+        `
+        SELECT monitor_group.monitor_id FROM monitor_group, \`group\`
+        WHERE monitor_group.group_id = \`group\`.id
+        AND \`group\`.status_page_id = ?
+    `,
+        [statusPageID]
+    );
+    const allowed = new Set(allowedRows.map((m) => parseInt(m, 10)));
+
     const seen = new Set();
     for (const raw of monitorIDs) {
         const id = parseInt(raw, 10);
-        if (!Number.isInteger(id) || seen.has(id)) {
+        if (!Number.isInteger(id) || seen.has(id) || !allowed.has(id)) {
             continue;
         }
         seen.add(id);
@@ -123,7 +140,7 @@ module.exports.statusPageSocketHandler = (socket) => {
 
             // Soca: replace the affected monitors (systems) relation
             if (incident.affectedMonitors !== undefined) {
-                await setIncidentMonitors(incidentBean.id, incident.affectedMonitors);
+                await setIncidentMonitors(incidentBean.id, statusPageID, incident.affectedMonitors);
             }
 
             // Soca: on create, seed the timeline with the first update.
@@ -137,6 +154,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             }
 
             apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -176,8 +194,7 @@ module.exports.statusPageSocketHandler = (socket) => {
                 throw new Error("slug is not found");
             }
 
-            const isPublic = !socket.userID;
-            const result = await StatusPage.getIncidentHistory(statusPageID, cursor, isPublic);
+            const result = await StatusPage.getIncidentHistory(statusPageID, cursor);
             callback({
                 ok: true,
                 ...result,
@@ -241,16 +258,17 @@ module.exports.statusPageSocketHandler = (socket) => {
             if (incident.impact !== undefined) {
                 bean.impact = normalizeImpact(incident.impact);
             }
-            bean.lastUpdatedDate = R.isoDateTime(dayjs.utc());
+            bean.last_updated_date = R.isoDateTime(dayjs.utc());
 
             await R.store(bean);
 
             // Soca: replace the affected monitors (systems) relation
             if (incident.affectedMonitors !== undefined) {
-                await setIncidentMonitors(bean.id, incident.affectedMonitors);
+                await setIncidentMonitors(bean.id, statusPageID, incident.affectedMonitors);
             }
 
             apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -292,6 +310,9 @@ module.exports.statusPageSocketHandler = (socket) => {
             }
 
             await R.trash(bean);
+
+            apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -342,6 +363,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             await R.store(updateBean);
 
             apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -398,6 +420,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             await R.store(bean);
 
             apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -435,6 +458,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             }
 
             apicache.clear();
+            clearReportCache();
             callback({ ok: true });
         } catch (error) {
             callback({ ok: false, msg: error.message });
@@ -593,6 +617,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             }
 
             apicache.clear();
+            clearReportCache();
 
             callback({
                 ok: true,
@@ -683,6 +708,7 @@ module.exports.statusPageSocketHandler = (socket) => {
                 await R.exec("DELETE FROM status_page WHERE id = ? ", [statusPageID]);
 
                 apicache.clear();
+                clearReportCache();
             } else {
                 throw new Error("Status Page is not found");
             }

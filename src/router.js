@@ -36,6 +36,7 @@ import RemoteBrowsers from "./components/settings/RemoteBrowsers.vue";
 import Users from "./components/settings/Users.vue";
 import Roles from "./components/settings/Roles.vue";
 import AuditLog from "./components/settings/AuditLog.vue";
+import RegulatoryReport from "./components/settings/RegulatoryReport.vue";
 import { can, permissionsState } from "./permissions-state.js";
 
 const routes = [
@@ -119,6 +120,11 @@ const routes = [
                                 path: "audit-log",
                                 component: AuditLog,
                                 meta: { permission: "users" },
+                            },
+                            {
+                                path: "report",
+                                component: RegulatoryReport,
+                                meta: { permission: "incidents" },
                             },
                             {
                                 path: "notifications",
