@@ -278,7 +278,12 @@ class UptimeKumaServer {
         const preloadData = await Monitor.preparePreloadData(monitorData);
 
         const result = {};
-        monitorList.forEach((monitor) => (result[monitor.id] = monitor.toJSON(preloadData)));
+        // Soca: monitors are broadcast team-wide (dashboard list + live updates to
+        // SHARED_DASHBOARD_ROOM, reaching every logged-in user regardless of role).
+        // Never include sensitive fields (passwords, tokens, secrets, TLS keys) here —
+        // the dashboard only needs display data. The edit form fetches the full,
+        // sensitive payload separately via the "components"-gated getMonitor handler.
+        monitorList.forEach((monitor) => (result[monitor.id] = monitor.toJSON(preloadData, false)));
         return result;
     }
 

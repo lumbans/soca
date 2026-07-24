@@ -45,18 +45,28 @@ async function countActiveAdmins() {
     return await R.count("user", ` active = 1 AND role IN (${placeholders}) `, keys);
 }
 
+// Soca: password policy for admin-created / reset accounts. These are all
+// operator accounts (some privileged), so require a length floor plus at least
+// a "Medium" strength rating — "Weak" values like "password1" are rejected.
+// check-password-strength ids: 0 Too weak, 1 Weak, 2 Medium, 3 Strong.
+const MIN_PASSWORD_LENGTH = 10;
+const MIN_PASSWORD_STRENGTH_ID = 2;
+
 /**
- * Soca: validate a desired password, throwing on weak/empty values.
+ * Soca: validate a desired password, throwing on empty/short/weak values.
  * @param {string} password Candidate password
  * @returns {void}
- * @throws {Error} The password is empty or too weak
+ * @throws {Error} The password is empty, too short, or too weak
  */
 function assertStrongPassword(password) {
     if (!password) {
         throw new Error("Password is required.");
     }
-    if (passwordStrength(password).value === "Too weak") {
-        throw new Error("Password is too weak. Please use a stronger password.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+    }
+    if (passwordStrength(password).id < MIN_PASSWORD_STRENGTH_ID) {
+        throw new Error("Password is too weak. Please use a stronger password (mix upper/lower case, numbers and symbols).");
     }
 }
 

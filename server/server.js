@@ -1077,7 +1077,10 @@ let needSetup = false;
 
         socket.on("getMonitor", async (monitorID, callback) => {
             try {
-                checkLogin(socket);
+                // Soca: this returns the monitor's full sensitive config (auth
+                // passwords, tokens, secrets, TLS keys) for the edit form, so gate it
+                // to component managers. Read-only viewers must not harvest secrets.
+                checkPermission(socket, "components");
 
                 log.info("monitor", `Get Monitor: ${monitorID} User ID: ${socket.userID}`);
 

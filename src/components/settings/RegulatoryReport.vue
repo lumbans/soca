@@ -373,11 +373,21 @@ export default {
 
         /**
          * Escape a value for CSV output.
+         *
+         * Besides quoting, neutralize spreadsheet formula injection: a cell whose
+         * first character is one of = + - @ (or a leading tab/CR that Excel trims)
+         * is treated as a formula by Excel/LibreOffice and would execute when the
+         * report is opened. Monitor names and incident text come from lower-trust
+         * authors than whoever opens the regulatory CSV, so prefix such cells with
+         * a single quote to force them to be read as literal text.
          * @param {*} value Raw value
          * @returns {string} Quoted, escaped CSV cell
          */
         csvCell(value) {
-            const s = value === null || value === undefined ? "" : String(value);
+            let s = value === null || value === undefined ? "" : String(value);
+            if (/^[=+\-@\t\r]/.test(s)) {
+                s = `'${s}`;
+            }
             return `"${s.replace(/"/g, '""')}"`;
         },
 
